@@ -1,0 +1,23 @@
+# Build output
+/itty
+/bin/
+/dist/
+
+# Go test and coverage output
+*.test
+*.out
+coverage.*
+
+# Secrets and runtime state
+.env
+*.pem
+*.key
+*.crt
+*.log
+/data/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
