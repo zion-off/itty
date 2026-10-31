@@ -1,0 +1,5 @@
+hostname = "localhost"
+listen = "127.0.0.1:8080"
+tmux_session = "itty"
+data_dir = "data"
+log_file = "itty.log"
