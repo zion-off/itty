@@ -11,7 +11,7 @@ require (
 require github.com/gorilla/websocket v1.5.3
 
 require (
-	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.4
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/go-webauthn/x v0.3.1 // indirect
