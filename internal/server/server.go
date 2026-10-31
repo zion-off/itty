@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"net/http"
@@ -21,6 +22,10 @@ type Authenticator interface {
 	FinishEnrollment(challengeID string, r *http.Request) error
 }
 
+type PrefixSource interface {
+	Prefix(ctx context.Context) (string, error)
+}
+
 type CertStatus interface {
 	DaysRemaining() (int, error)
 }
@@ -31,6 +36,7 @@ type Deps struct {
 	Auth     Authenticator
 	Limiter  ratelimit.Limiter
 	Certs    CertStatus
+	Prefix   PrefixSource
 	Log      *slog.Logger
 }
 

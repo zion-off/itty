@@ -351,3 +351,26 @@ func TestStatusReportsCertificateDays(t *testing.T) {
 		t.Fatalf("got %s", got)
 	}
 }
+
+type fakePrefix string
+
+func (p fakePrefix) Prefix(context.Context) (string, error) { return string(p), nil }
+
+func TestPrefixIsSentAfterAttach(t *testing.T) {
+	e := setup(t)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ts := httptest.NewServer(New(Deps{Hostname: "localhost", Launcher: e.launch, Auth: e.auth, Limiter: e.limiter, Prefix: fakePrefix("C-s"), Log: log}))
+	defer ts.Close()
+
+	conn, _, err := dial(&httptest.Server{URL: ts.URL}, "http://localhost", "good")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	_ = conn.WriteJSON(map[string]any{"type": "resize", "cols": 80, "rows": 24})
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	typ, data, err := conn.ReadMessage()
+	if err != nil || typ != websocket.TextMessage || strings.TrimSpace(string(data)) != `{"type":"prefix","value":"C-s"}` {
+		t.Fatalf("got %d %q %v", typ, data, err)
+	}
+}
