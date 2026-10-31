@@ -103,3 +103,16 @@ func TestResize(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPrefixReadsTmuxOption(t *testing.T) {
+	l := newTestLauncher(t)
+	s, err := l.Start(context.Background(), Size{Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close(); _, _ = s.Wait() }()
+	got, err := l.Prefix(context.Background())
+	if err != nil || got == "" {
+		t.Fatalf("prefix = %q, err = %v", got, err)
+	}
+}
