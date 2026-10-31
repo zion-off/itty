@@ -56,10 +56,12 @@ func serve(cfg config.Config, log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	tmux := terminal.TmuxLauncher{Session: cfg.TmuxSession, Log: log}
 	deps := server.Deps{
 		Hostname: cfg.Hostname,
-		Launcher: terminal.TmuxLauncher{Session: cfg.TmuxSession, Log: log},
+		Launcher: tmux,
 		Auth:     authService,
+		Prefix:   tmux,
 		Limiter:  ratelimit.NewFailureLimiter(clk, maxFailedLogins, failureWindow),
 		Log:      log,
 	}
