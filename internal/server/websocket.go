@@ -26,27 +26,35 @@ type clientMessage struct {
 	Rows uint16 `json:"rows"`
 }
 
-func (s *Server) upgrader() websocket.Upgrader {
-	return websocket.Upgrader{CheckOrigin: s.originAllowed}
-}
-
 func (s *Server) originAllowed(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
 		return false
 	}
 	u, err := url.Parse(origin)
-	return err == nil && u.Hostname() == s.hostname
+	return err == nil && u.Hostname() == s.Hostname
 }
 
 func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	connID := logging.NewID()
-	log := s.log.With("conn_id", connID, "remote", r.RemoteAddr)
+	log := s.Log.With("conn_id", connID, "remote", r.RemoteAddr)
 
-	up := s.upgrader()
+	if !s.originAllowed(r) {
+		log.Warn("websocket rejected", "reason", "origin not allowed", "origin", r.Header.Get("Origin"))
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if !s.Auth.RedeemTicket(r.URL.Query().Get("ticket")) {
+		log.Warn("websocket rejected", "reason", "invalid ticket")
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	log.Info("ticket redeemed")
+
+	up := websocket.Upgrader{CheckOrigin: s.originAllowed}
 	conn, err := up.Upgrade(w, r, nil)
 	if err != nil {
-		log.Warn("websocket upgrade rejected", "origin", r.Header.Get("Origin"), "error", err)
+		log.Warn("websocket upgrade failed", "error", err)
 		return
 	}
 	defer conn.Close()
@@ -61,7 +69,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := s.launcher.Start(r.Context(), size)
+	session, err := s.Launcher.Start(r.Context(), size)
 	if err != nil {
 		log.Error("terminal start failed", "error", err)
 		return

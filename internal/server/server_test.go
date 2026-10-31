@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,8 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/gorilla/websocket"
 
+	"github.com/zion/itty/internal/clock"
+	"github.com/zion/itty/internal/ratelimit"
 	"github.com/zion/itty/internal/terminal"
 )
 
@@ -67,26 +71,69 @@ func (l *fakeLauncher) Start(_ context.Context, size terminal.Size) (terminal.Se
 	return l.session, nil
 }
 
-func setup(t *testing.T) (*httptest.Server, *fakeLauncher) {
-	t.Helper()
-	l := &fakeLauncher{session: newFakeSession(), started: make(chan terminal.Size, 1)}
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	ts := httptest.NewServer(New("localhost", l, log))
-	t.Cleanup(ts.Close)
-	return ts, l
+type fakeAuth struct {
+	tickets          map[string]bool
+	enrollmentActive bool
+	loginErr         error
 }
 
-func dial(ts *httptest.Server, origin string) (*websocket.Conn, *http.Response, error) {
+func (a *fakeAuth) BeginLogin() (*protocol.CredentialAssertion, string, error) {
+	return &protocol.CredentialAssertion{}, "chal", nil
+}
+
+func (a *fakeAuth) FinishLogin(string, *http.Request) (string, error) {
+	if a.loginErr != nil {
+		return "", a.loginErr
+	}
+	a.tickets["t1"] = true
+	return "t1", nil
+}
+
+func (a *fakeAuth) RedeemTicket(t string) bool {
+	ok := a.tickets[t]
+	delete(a.tickets, t)
+	return ok
+}
+
+func (a *fakeAuth) EnrollmentActive() bool { return a.enrollmentActive }
+
+func (a *fakeAuth) BeginEnrollment(string) (*protocol.CredentialCreation, string, error) {
+	return &protocol.CredentialCreation{}, "enr", nil
+}
+
+func (a *fakeAuth) FinishEnrollment(string, *http.Request) error { return nil }
+
+type env struct {
+	ts      *httptest.Server
+	base    string
+	launch  *fakeLauncher
+	auth    *fakeAuth
+	limiter *ratelimit.FailureLimiter
+}
+
+func setup(t *testing.T) env {
+	t.Helper()
+	l := &fakeLauncher{session: newFakeSession(), started: make(chan terminal.Size, 1)}
+	a := &fakeAuth{tickets: map[string]bool{"good": true}}
+	lim := ratelimit.NewFailureLimiter(clock.System{}, 3, time.Minute)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ts := httptest.NewServer(New(Deps{Hostname: "localhost", Launcher: l, Auth: a, Limiter: lim, Log: log}))
+	t.Cleanup(ts.Close)
+	return env{ts: ts, base: strings.Replace(ts.URL, "127.0.0.1", "localhost", 1), launch: l, auth: a, limiter: lim}
+}
+
+func dial(ts *httptest.Server, origin, ticket string) (*websocket.Conn, *http.Response, error) {
 	h := http.Header{}
 	if origin != "" {
 		h.Set("Origin", origin)
 	}
-	return websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(ts.URL, "http")+"/ws", h)
+	return websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(strings.Replace(ts.URL, "127.0.0.1", "localhost", 1), "http")+"/ws?ticket="+ticket, h)
 }
 
 func TestWebsocketBridgesTerminal(t *testing.T) {
-	ts, l := setup(t)
-	conn, _, err := dial(ts, "http://localhost:8080")
+	e := setup(t)
+	l := e.launch
+	conn, _, err := dial(e.ts, "http://localhost:8080", "good")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,8 +179,9 @@ func TestWebsocketBridgesTerminal(t *testing.T) {
 }
 
 func TestClosingWebsocketEndsSession(t *testing.T) {
-	ts, l := setup(t)
-	conn, _, err := dial(ts, "http://localhost")
+	e := setup(t)
+	l := e.launch
+	conn, _, err := dial(e.ts, "http://localhost", "good")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,9 +196,10 @@ func TestClosingWebsocketEndsSession(t *testing.T) {
 }
 
 func TestWebsocketRejectsForeignOrigin(t *testing.T) {
-	ts, l := setup(t)
+	e := setup(t)
+	l := e.launch
 	for _, origin := range []string{"", "http://evil.example.com"} {
-		if _, resp, err := dial(ts, origin); err == nil || resp == nil || resp.StatusCode != http.StatusForbidden {
+		if _, resp, err := dial(e.ts, origin, "good"); err == nil || resp == nil || resp.StatusCode != http.StatusForbidden {
 			t.Fatalf("origin %q: expected 403, got err=%v resp=%v", origin, err, resp)
 		}
 	}
@@ -161,9 +210,107 @@ func TestWebsocketRejectsForeignOrigin(t *testing.T) {
 	}
 }
 
+func TestWebsocketRejectsBadTicketAndConsumesGoodOne(t *testing.T) {
+	e := setup(t)
+	if _, resp, err := dial(e.ts, "http://localhost", "bad"); err == nil || resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("bad ticket: err=%v resp=%v", err, resp)
+	}
+	if _, resp, err := dial(e.ts, "http://localhost", ""); err == nil || resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("missing ticket: err=%v resp=%v", err, resp)
+	}
+	conn, _, err := dial(e.ts, "http://localhost", "good")
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	if _, resp, err := dial(e.ts, "http://localhost", "good"); err == nil || resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("ticket reuse: err=%v resp=%v", err, resp)
+	}
+}
+
+func TestOriginRejectionDoesNotConsumeTicket(t *testing.T) {
+	e := setup(t)
+	_, _, _ = dial(e.ts, "http://evil.example.com", "good")
+	if !e.auth.tickets["good"] {
+		t.Fatal("ticket consumed by a rejected request")
+	}
+}
+
+func TestRequestsForOtherHostsGetNoResponse(t *testing.T) {
+	e := setup(t)
+	req, _ := http.NewRequest("GET", e.base+"/", nil)
+	req.Host = "203.0.113.5"
+	if resp, err := http.DefaultClient.Do(req); err == nil {
+		resp.Body.Close()
+		t.Fatalf("expected the connection to be dropped, got %d", resp.StatusCode)
+	}
+}
+
+func TestEnrollmentIsNotFoundUnlessActive(t *testing.T) {
+	e := setup(t)
+	for _, path := range []string{"/enroll"} {
+		resp, _ := http.Get(e.base + path)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("GET %s = %d", path, resp.StatusCode)
+		}
+	}
+	for _, path := range []string{"/enroll/begin", "/enroll/finish"} {
+		resp, _ := http.Post(e.base+path, "application/json", strings.NewReader(`{}`))
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("POST %s = %d", path, resp.StatusCode)
+		}
+	}
+	e.auth.enrollmentActive = true
+	resp, _ := http.Get(e.base + "/enroll")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("active enrollment page = %d", resp.StatusCode)
+	}
+}
+
+func TestRepeatedFailedLoginsAreRateLimited(t *testing.T) {
+	e := setup(t)
+	e.auth.loginErr = errors.New("bad signature")
+	post := func() int {
+		resp, err := http.Post(e.base+"/auth/verify?id=x", "application/json", strings.NewReader(`{}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+	for i := 0; i < 3; i++ {
+		if got := post(); got != http.StatusUnauthorized {
+			t.Fatalf("attempt %d = %d", i, got)
+		}
+	}
+	if got := post(); got != http.StatusTooManyRequests {
+		t.Fatalf("4th attempt = %d, want 429", got)
+	}
+	e.auth.loginErr = nil
+	if got := post(); got != http.StatusTooManyRequests {
+		t.Fatalf("limit must also block a valid attempt, got %d", got)
+	}
+}
+
+func TestLoginReturnsTicket(t *testing.T) {
+	e := setup(t)
+	resp, err := http.Post(e.base+"/auth/verify?id=x", "application/json", strings.NewReader(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 || !strings.Contains(string(body), `"ticket":"t1"`) {
+		t.Fatalf("%d %s", resp.StatusCode, body)
+	}
+}
+
 func TestServesClient(t *testing.T) {
-	ts, _ := setup(t)
-	resp, err := http.Get(ts.URL + "/")
+	e := setup(t)
+	resp, err := http.Get(e.base + "/")
 	if err != nil {
 		t.Fatal(err)
 	}
