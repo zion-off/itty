@@ -2,6 +2,8 @@
   const lock = document.getElementById('lock');
   const lockStatus = document.getElementById('lock-status');
   const unlockButton = document.getElementById('unlock');
+  const certWarning = document.getElementById('cert-warning');
+  const CERT_WARNING_DAYS = 14;
 
   const term = new Terminal({ cursorBlink: true, fontSize: 14, scrollback: 0 });
   const fit = new FitAddon.FitAddon();
@@ -12,9 +14,21 @@
   let socket = null;
   let unlocking = false;
 
+  async function refreshCertWarning() {
+    try {
+      const res = await fetch('/status', { cache: 'no-store' });
+      const { cert_days_remaining: days } = await res.json();
+      const expiring = typeof days === 'number' && days <= CERT_WARNING_DAYS;
+      certWarning.textContent = expiring ? `Certificate expires in ${days} day(s). Run itty renew-cert.` : '';
+    } catch (err) {
+      certWarning.textContent = '';
+    }
+  }
+
   function showLock(message) {
     lock.hidden = false;
     lockStatus.textContent = message || '';
+    refreshCertWarning();
   }
 
   function closeSocket() {
