@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 
@@ -45,6 +46,18 @@ func Load(path string) (Config, error) {
 	cfg.resolvePaths(filepath.Dir(path))
 	return cfg, nil
 }
+
+func (c Config) Origin() string {
+	_, port, err := net.SplitHostPort(c.Listen)
+	if c.Hostname == "localhost" && err == nil {
+		return "http://localhost:" + port
+	}
+	return "https://" + c.Hostname
+}
+
+func (c Config) CredentialsPath() string { return filepath.Join(c.DataDir, "credentials.json") }
+
+func (c Config) EnrollmentPath() string { return filepath.Join(c.DataDir, "enrollment.json") }
 
 func (c Config) Validate() error {
 	var errs []error

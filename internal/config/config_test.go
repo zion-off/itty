@@ -46,3 +46,18 @@ func TestLoadMissingFile(t *testing.T) {
 		t.Fatal("expected error for missing file")
 	}
 }
+
+func TestOrigin(t *testing.T) {
+	cases := []struct {
+		cfg  Config
+		want string
+	}{
+		{Config{Hostname: "localhost", Listen: "127.0.0.1:9000"}, "http://localhost:9000"},
+		{Config{Hostname: "itty.example.com", Listen: "10.0.0.5:443"}, "https://itty.example.com"},
+	}
+	for _, c := range cases {
+		if got := c.cfg.Origin(); got != c.want {
+			t.Errorf("Origin() = %q, want %q", got, c.want)
+		}
+	}
+}
