@@ -12,6 +12,19 @@
 
   const encoder = new TextEncoder();
   let socket = null;
+
+  function sendText(data) {
+    if (socket && socket.readyState === WebSocket.OPEN) socket.send(encoder.encode(data));
+  }
+
+  const keyBar = KeyBar.create({
+    container: document.getElementById('keybar'),
+    send: (data) => {
+      sendText(data);
+      term.focus();
+    },
+    applicationCursorMode: () => term.modes.applicationCursorKeysMode,
+  });
   let unlocking = false;
 
   async function refreshCertWarning() {
@@ -62,7 +75,12 @@
       term.focus();
     };
     socket.onmessage = (event) => {
-      if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
+      if (event.data instanceof ArrayBuffer) {
+        term.write(new Uint8Array(event.data));
+        return;
+      }
+      const message = JSON.parse(event.data);
+      if (message.type === 'prefix') keyBar.setPrefix(message.value);
     };
     socket.onclose = () => lockDown('Disconnected');
   }
@@ -82,11 +100,15 @@
     }
   }
 
-  term.onData((data) => {
-    if (socket && socket.readyState === WebSocket.OPEN) socket.send(encoder.encode(data));
-  });
+  term.onData((data) => sendText(keyBar.applyCtrl(data)));
   term.onResize(sendResize);
-  window.addEventListener('resize', () => fit.fit());
+  function fitToViewport() {
+    const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', `${height}px`);
+    fit.fit();
+  }
+  window.addEventListener('resize', fitToViewport);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fitToViewport);
   unlockButton.addEventListener('click', unlock);
 
   document.addEventListener('visibilitychange', () => {
@@ -97,6 +119,6 @@
     }
   });
 
-  fit.fit();
+  fitToViewport();
   unlock();
 })();
