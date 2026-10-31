@@ -328,3 +328,26 @@ func TestParseResizeRejectsInvalid(t *testing.T) {
 		}
 	}
 }
+
+type fakeCerts struct{ days int }
+
+func (f fakeCerts) DaysRemaining() (int, error) { return f.days, nil }
+
+func TestStatusReportsCertificateDays(t *testing.T) {
+	e := setup(t)
+	body := func(h http.Handler) string {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "http://localhost/status", nil)
+		h.ServeHTTP(rec, req)
+		return strings.TrimSpace(rec.Body.String())
+	}
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	withCerts := New(Deps{Hostname: "localhost", Launcher: e.launch, Auth: e.auth, Limiter: e.limiter, Certs: fakeCerts{days: 9}, Log: log})
+	if got := body(withCerts); got != `{"cert_days_remaining":9}` {
+		t.Fatalf("got %s", got)
+	}
+	withoutCerts := New(Deps{Hostname: "localhost", Launcher: e.launch, Auth: e.auth, Limiter: e.limiter, Log: log})
+	if got := body(withoutCerts); got != `{}` {
+		t.Fatalf("got %s", got)
+	}
+}

@@ -21,11 +21,16 @@ type Authenticator interface {
 	FinishEnrollment(challengeID string, r *http.Request) error
 }
 
+type CertStatus interface {
+	DaysRemaining() (int, error)
+}
+
 type Deps struct {
 	Hostname string
 	Launcher terminal.Launcher
 	Auth     Authenticator
 	Limiter  ratelimit.Limiter
+	Certs    CertStatus
 	Log      *slog.Logger
 }
 
@@ -41,6 +46,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /enroll", s.handleEnrollPage)
 	mux.HandleFunc("POST /enroll/begin", s.handleEnrollBegin)
 	mux.HandleFunc("POST /enroll/finish", s.handleEnrollFinish)
+	mux.HandleFunc("GET /status", s.handleStatus)
 	mux.HandleFunc("GET /ws", s.handleWebsocket)
 	mux.Handle("GET /", http.FileServerFS(web.Files()))
 	return s.requireHostname(mux)
@@ -79,4 +85,16 @@ func sourceKey(r *http.Request) string {
 		return h
 	}
 	return r.RemoteAddr
+}
+
+func (s *Server) handleStatus(w http.ResponseWriter, _ *http.Request) {
+	status := map[string]int{}
+	if s.Certs != nil {
+		if days, err := s.Certs.DaysRemaining(); err != nil {
+			s.Log.Error("certificate expiry lookup failed", "error", err)
+		} else {
+			status["cert_days_remaining"] = days
+		}
+	}
+	writeJSON(w, status)
 }
