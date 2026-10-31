@@ -16,7 +16,7 @@ func write(t *testing.T, body string) string {
 }
 
 func TestLoadAppliesDefaultsAndResolvesRelativePaths(t *testing.T) {
-	p := write(t, `hostname = "itty.example.com"`)
+	p := write(t, "hostname = \"itty.example.com\"\ntls_cert_file = \"c.pem\"\ntls_key_file = \"k.pem\"")
 	cfg, err := Load(p)
 	if err != nil {
 		t.Fatal(err)
@@ -53,11 +53,21 @@ func TestOrigin(t *testing.T) {
 		want string
 	}{
 		{Config{Hostname: "localhost", Listen: "127.0.0.1:9000"}, "http://localhost:9000"},
-		{Config{Hostname: "itty.example.com", Listen: "10.0.0.5:443"}, "https://itty.example.com"},
+		{Config{Hostname: "itty.example.com", Listen: "10.0.0.5:443", TLSCertFile: "c"}, "https://itty.example.com"},
+		{Config{Hostname: "itty.example.com", Listen: "10.0.0.5:8443", TLSCertFile: "c"}, "https://itty.example.com:8443"},
 	}
 	for _, c := range cases {
 		if got := c.cfg.Origin(); got != c.want {
 			t.Errorf("Origin() = %q, want %q", got, c.want)
 		}
+	}
+}
+
+func TestLoadRequiresTLSForRealHostname(t *testing.T) {
+	if _, err := Load(write(t, `hostname = "itty.example.com"`)); err == nil {
+		t.Fatal("expected error without tls files")
+	}
+	if _, err := Load(write(t, "tls_cert_file = \"c.pem\"")); err == nil {
+		t.Fatal("expected error when only the certificate is set")
 	}
 }

@@ -3,3 +3,7 @@ listen = "127.0.0.1:8080"
 tmux_session = "itty"
 data_dir = "data"
 log_file = "itty.log"
+
+# Required unless hostname is "localhost".
+# tls_cert_file = "certs/fullchain.pem"
+# tls_key_file = "certs/privkey.pem"

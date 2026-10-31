@@ -17,7 +17,11 @@ type Config struct {
 	TmuxSession string `toml:"tmux_session"`
 	DataDir     string `toml:"data_dir"`
 	LogFile     string `toml:"log_file"`
+	TLSCertFile string `toml:"tls_cert_file"`
+	TLSKeyFile  string `toml:"tls_key_file"`
 }
+
+func (c Config) TLSEnabled() bool { return c.TLSCertFile != "" }
 
 func Default() Config {
 	return Config{
@@ -49,10 +53,14 @@ func Load(path string) (Config, error) {
 
 func (c Config) Origin() string {
 	_, port, err := net.SplitHostPort(c.Listen)
-	if c.Hostname == "localhost" && err == nil {
-		return "http://localhost:" + port
+	scheme := "http"
+	if c.TLSEnabled() {
+		scheme = "https"
 	}
-	return "https://" + c.Hostname
+	if err != nil || (scheme == "https" && port == "443") {
+		return scheme + "://" + c.Hostname
+	}
+	return scheme + "://" + c.Hostname + ":" + port
 }
 
 func (c Config) CredentialsPath() string { return filepath.Join(c.DataDir, "credentials.json") }
@@ -76,12 +84,22 @@ func (c Config) Validate() error {
 	if c.LogFile == "" {
 		errs = append(errs, errors.New("log_file is required"))
 	}
+	if (c.TLSCertFile == "") != (c.TLSKeyFile == "") {
+		errs = append(errs, errors.New("tls_cert_file and tls_key_file must be set together"))
+	}
+	if c.TLSCertFile == "" && c.Hostname != "localhost" {
+		errs = append(errs, errors.New("tls_cert_file and tls_key_file are required unless hostname is localhost"))
+	}
 	return errors.Join(errs...)
 }
 
 func (c *Config) resolvePaths(base string) {
 	c.DataDir = absolute(base, c.DataDir)
 	c.LogFile = absolute(base, c.LogFile)
+	if c.TLSEnabled() {
+		c.TLSCertFile = absolute(base, c.TLSCertFile)
+		c.TLSKeyFile = absolute(base, c.TLSKeyFile)
+	}
 }
 
 func absolute(base, p string) string {
