@@ -21,3 +21,8 @@ coverage.*
 .vscode/
 *.swp
 .DS_Store
+
+# Local install
+/itty.toml
+/certs/
+/.lego/
