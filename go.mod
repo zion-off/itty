@@ -10,6 +10,8 @@ require (
 
 require github.com/gorilla/websocket v1.5.3
 
+require golang.org/x/term v0.47.0
+
 require (
 	github.com/fxamacker/cbor/v2 v2.9.4
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect

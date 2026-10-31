@@ -6,16 +6,22 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/zion/itty/internal/config"
 	"github.com/zion/itty/internal/logging"
 )
 
-type command func(cfg config.Config, log *slog.Logger) error
+const defaultConfigPath = "itty.toml"
+
+type command func(args []string) error
 
 var commands = map[string]command{
-	"serve":  serve,
-	"enroll": enroll,
+	"init":   initCommand,
+	"check":  withConfig("check", check),
+	"enroll": withConfig("enroll", enroll),
+	"serve":  withConfig("serve", serve),
 }
 
 func main() {
@@ -25,31 +31,43 @@ func main() {
 	}
 }
 
-func run(args []string) (err error) {
+func run(args []string) error {
 	name := "serve"
-	if len(args) > 0 && len(args[0]) > 0 && args[0][0] != '-' {
+	if len(args) > 0 && args[0] != "" && args[0][0] != '-' {
 		name, args = args[0], args[1:]
 	}
 	cmd, ok := commands[name]
 	if !ok {
-		return fmt.Errorf("unknown command %q (available: serve, enroll)", name)
+		return fmt.Errorf("unknown command %q (available: %s)", name, strings.Join(commandNames(), ", "))
 	}
+	return cmd(args)
+}
 
-	fs := flag.NewFlagSet("itty "+name, flag.ContinueOnError)
-	configPath := fs.String("config", "itty.toml", "path to the configuration file")
-	if err := fs.Parse(args); err != nil {
-		return err
+func commandNames() []string {
+	names := make([]string, 0, len(commands))
+	for n := range commands {
+		names = append(names, n)
 	}
+	sort.Strings(names)
+	return names
+}
 
-	cfg, err := config.Load(*configPath)
-	if err != nil {
-		return err
+func withConfig(name string, fn func(cfg config.Config, log *slog.Logger) error) command {
+	return func(args []string) (err error) {
+		fs := flag.NewFlagSet("itty "+name, flag.ContinueOnError)
+		configPath := fs.String("config", defaultConfigPath, "path to the configuration file")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		cfg, err := config.Load(*configPath)
+		if err != nil {
+			return err
+		}
+		log, closeLog, err := logging.New(cfg.LogFile)
+		if err != nil {
+			return err
+		}
+		defer func() { err = errors.Join(err, closeLog()) }()
+		return fn(cfg, log)
 	}
-	log, closeLog, err := logging.New(cfg.LogFile)
-	if err != nil {
-		return err
-	}
-	defer func() { err = errors.Join(err, closeLog()) }()
-
-	return cmd(cfg, log)
 }
