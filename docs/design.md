@@ -24,7 +24,7 @@ The web client is plain HTML and JavaScript with xterm.js. The itty server serve
 
 The itty server also provides two command-line commands, `itty enroll` and `itty renew-cert`, which the operator runs on the VM.
 
-A configuration file holds everything that differs between installs. This is the hostname, the address and port to listen on, the tmux session name, the certificate mode and file paths, the data directory and the log file location. The format of the file is an open question.
+A configuration file holds everything that differs between installs. This is the hostname, the address and port to listen on, the tmux session name, the certificate mode and file paths, the data directory and the log file location. The file is TOML.
 
 ```
 phone --HTTPS--> itty server
@@ -36,11 +36,12 @@ phone --HTTPS--> itty server
 
 The authentication assumes that the network is hostile. It does not depend on the VPN, so a later version can allow internet exposure without redesigning the login. In the first version the VPN is an extra layer that limits who can reach the server.
 
-Before login, the server exposes only these endpoints:
+Before login, the server exposes only these endpoints (enrollment also has begin and finish endpoints that follow the same rule):
 
 - The static client files.
 - The endpoint that issues a login challenge.
 - The endpoint that verifies a signed challenge.
+- The status endpoint, which returns only the days until the certificate expires, for the lock screen.
 - The websocket endpoint, which accepts an upgrade only with a valid ticket.
 - The enrollment endpoint, which exists only while an enrollment link is active and returns not found otherwise.
 
@@ -78,11 +79,11 @@ If the certificate expires, the web app stops working until the operator renews 
 
 Authentication uses WebAuthn with the configured hostname as the relying party. The login requires user verification, so the phone always asks for FaceID or the equivalent. Where the passkey is stored depends on the authenticator. On an iPhone it is stored in iCloud Keychain by default.
 
-The server stores each credential's ID, public key and signature counter in a local file. It stores nothing else about the passkey.
+The server stores each enrolled credential in a local file with mode 0600. The record holds the credential ID, public key, signature counter and the flags that the WebAuthn library needs to validate later logins, and nothing else about the passkey.
 
 ### Enrollment
 
-The operator runs `itty enroll` on the VM. The command prints a one-time link that expires after a short time and cannot be guessed. The operator opens the link on the phone, which registers a passkey, and the server marks the link as used. There is no public registration page and no "forgot passkey" flow.
+The operator runs `itty enroll` on the VM. The command prints a one-time link that expires after 10 minutes and cannot be guessed. The token is in the link's fragment, so it never appears in a request line or a server log. The command and the server share the link through a file in the data directory, which holds only a hash of the token. The operator opens the link on the phone, which registers a passkey, and the server marks the link as used. There is no public registration page and no "forgot passkey" flow.
 
 Enrollment is also the recovery path. If the phone is lost, the operator runs `itty enroll` again from any shell on the VM and registers a new passkey.
 
@@ -101,7 +102,7 @@ There are no session cookies and no long-lived login. Every websocket needs a fr
 
 ## Terminal session
 
-For each websocket, the server starts a pty that runs `tmux attach` for the configured session, as the user that runs itty. When the websocket closes, the server ends that attach process. The tmux session itself keeps running, so the operator's work is not affected by dropped connections, and the next login attaches to the same session.
+For each websocket, the server starts a pty that runs `tmux new-session -A` for the configured session, which attaches to it and creates it when it does not exist, as the user that runs itty. When the websocket closes, the server ends that attach process. The tmux session itself keeps running, so the operator's work is not affected by dropped connections, and the next login attaches to the same session.
 
 The client sends its terminal size when it connects and whenever the size changes, and the server applies it to the pty.
 
@@ -163,17 +164,23 @@ The server never logs ticket values, challenge values or terminal input and outp
 
 ## Open questions
 
-- The ticket lifetime and the enrollment link lifetime. Both need a value, and the ticket needs only enough time for the client to open the websocket.
-- The rate limits on login and enrollment attempts, and whether they apply per source address, overall or both.
-- The name of the tmux session, and whether the server creates it when it does not exist or refuses to attach.
-- Whether a new enrollment replaces the existing passkey or adds to it.
-- The days-remaining threshold at which the lock screen starts showing the certificate warning.
 - The contribution guide for new DNS providers, including the tests that every provider must pass, such as a shared set of checks against the interface.
 - Whether the ACME code uses `golang.org/x/crypto/acme` or the `lego` library.
-- The format and default location of the configuration file, and the default locations of the credential, certificate, key and log files.
+- The default location of the configuration file. Relative paths in the file resolve against the file's directory.
 - Whether the log file is rotated by itty or left to the operator.
 - How the server gets permission to listen on port 443, either by a configurable port behind a reverse proxy or by a system capability.
 - How an operator installs and starts itty, such as a service file or an init command, and whether the project provides one.
 - Whether the VPN's DNS resolver accepts a public name that resolves to a private address. Some resolvers block this, and it has not been tested.
 - The macro buttons on the key bar, if any.
-- The wire format of the websocket messages, which carry terminal data, resize events and the prefix value.
+
+## Decided values
+
+- The ticket lasts 15 seconds and a login challenge lasts 2 minutes.
+- Each source address may fail 5 times per minute on the login and enrollment endpoints. The limit counts only failures and blocks every later attempt from that address, including a valid one, until the failures age out.
+- The tmux session is named `itty` by default and is created when it does not exist.
+- A new enrollment adds a passkey and does not replace the existing ones.
+- The lock screen shows the certificate warning when 14 days or fewer remain.
+
+## Websocket messages
+
+Binary frames carry terminal data in both directions. Text frames carry JSON control messages. The client sends `{"type":"resize","cols":N,"rows":N}` as its first message and again whenever the size changes. The server sends `{"type":"prefix","value":"C-b"}` after the session attaches. The websocket URL carries the ticket in the `ticket` query parameter, and the server never logs URLs.
