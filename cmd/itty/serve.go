@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/zion/itty/internal/auth"
+	"github.com/zion/itty/internal/certs"
 	"github.com/zion/itty/internal/clock"
 	"github.com/zion/itty/internal/config"
 	"github.com/zion/itty/internal/ratelimit"
@@ -21,10 +23,11 @@ import (
 )
 
 const (
-	shutdownTimeout  = 5 * time.Second
-	maxFailedLogins  = 5
-	failureWindow    = time.Minute
-	readHeaderTimout = 10 * time.Second
+	shutdownTimeout   = 5 * time.Second
+	maxFailedLogins   = 5
+	failureWindow     = time.Minute
+	readHeaderTimout  = 10 * time.Second
+	expiryLogInterval = 24 * time.Hour
 )
 
 func serve(cfg config.Config, log *slog.Logger) error {
@@ -50,24 +53,40 @@ func serve(cfg config.Config, log *slog.Logger) error {
 		log,
 	)
 
-	srv := &http.Server{
-		Addr: cfg.Listen,
-		Handler: server.New(server.Deps{
-			Hostname: cfg.Hostname,
-			Launcher: terminal.TmuxLauncher{Session: cfg.TmuxSession, Log: log},
-			Auth:     authService,
-			Limiter:  ratelimit.NewFailureLimiter(clk, maxFailedLogins, failureWindow),
-			Log:      log,
-		}),
-		ReadHeaderTimeout: readHeaderTimout,
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	deps := server.Deps{
+		Hostname: cfg.Hostname,
+		Launcher: terminal.TmuxLauncher{Session: cfg.TmuxSession, Log: log},
+		Auth:     authService,
+		Limiter:  ratelimit.NewFailureLimiter(clk, maxFailedLogins, failureWindow),
+		Log:      log,
+	}
+	srv := &http.Server{
+		Addr:              cfg.Listen,
+		ReadHeaderTimeout: readHeaderTimout,
+		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
+	}
+
+	if cfg.TLSEnabled() {
+		source, err := certs.NewFileSource(cfg.TLSCertFile, cfg.TLSKeyFile, cfg.Hostname, clk, log)
+		if err != nil {
+			return fmt.Errorf("load certificate: %w", err)
+		}
+		deps.Certs = source
+		srv.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12, GetCertificate: source.GetCertificate}
+		go logCertificateExpiry(ctx, source, log)
+	}
+	srv.Handler = server.New(deps)
+
 	errCh := make(chan error, 1)
 	go func() {
-		log.Info("server listening", "listen", cfg.Listen, "hostname", cfg.Hostname, "origin", cfg.Origin(), "tmux_session", cfg.TmuxSession)
+		log.Info("server listening", "listen", cfg.Listen, "hostname", cfg.Hostname, "origin", cfg.Origin(), "tmux_session", cfg.TmuxSession, "tls", cfg.TLSEnabled())
+		if cfg.TLSEnabled() {
+			errCh <- srv.ListenAndServeTLS("", "")
+			return
+		}
 		errCh <- srv.ListenAndServe()
 	}()
 
@@ -83,5 +102,23 @@ func serve(cfg config.Config, log *slog.Logger) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		return srv.Shutdown(shutdownCtx)
+	}
+}
+
+func logCertificateExpiry(ctx context.Context, source server.CertStatus, log *slog.Logger) {
+	ticker := time.NewTicker(expiryLogInterval)
+	defer ticker.Stop()
+	for {
+		days, err := source.DaysRemaining()
+		if err != nil {
+			log.Error("certificate expiry check failed", "error", err)
+		} else {
+			log.Info("certificate expiry", "days_remaining", days)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
 	}
 }
