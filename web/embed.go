@@ -5,7 +5,7 @@ import (
 	"io/fs"
 )
 
-//go:embed index.html app.js style.css vendor
+//go:embed index.html enroll.html app.js enroll.js passkey.js style.css vendor
 var files embed.FS
 
 func Files() fs.FS { return files }

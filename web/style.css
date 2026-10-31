@@ -10,3 +10,32 @@ html, body {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   box-sizing: border-box;
 }
+#lock {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: #000;
+  color: #ddd;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  font-family: system-ui, sans-serif;
+}
+#lock[hidden] { display: none; }
+button {
+  font-size: 1.1rem;
+  padding: 0.7rem 1.6rem;
+  border-radius: 0.6rem;
+  border: 1px solid #555;
+  background: #222;
+  color: #eee;
+}
+.page {
+  height: auto;
+  overflow: auto;
+  color: #ddd;
+  font-family: system-ui, sans-serif;
+  padding: 2rem;
+}
