@@ -17,8 +17,8 @@ type Config struct {
 	TmuxSession string `toml:"tmux_session"`
 	DataDir     string `toml:"data_dir"`
 	LogFile     string `toml:"log_file"`
-	TLSCertFile string `toml:"tls_cert_file"`
-	TLSKeyFile  string `toml:"tls_key_file"`
+	TLSCertFile string `toml:"tls_cert_file,omitempty"`
+	TLSKeyFile  string `toml:"tls_key_file,omitempty"`
 }
 
 func (c Config) TLSEnabled() bool { return c.TLSCertFile != "" }
