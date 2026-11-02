@@ -358,10 +358,11 @@ body:not(.locked) #lock {
 }
 
 #keybar {
+  --key-gap: var(--space-1);
   position: relative;
   display: flex;
-  gap: var(--space-3);
-  padding: var(--space-2) max(var(--space-3), env(safe-area-inset-right)) calc(var(--space-2) + env(safe-area-inset-bottom)) max(var(--space-3), env(safe-area-inset-left));
+  gap: var(--space-2);
+  padding: var(--space-2) max(var(--space-2), env(safe-area-inset-right)) calc(var(--space-2) + env(safe-area-inset-bottom)) max(var(--space-2), env(safe-area-inset-left));
   background: var(--material-bar);
   box-shadow: 0 calc(-1 * var(--hairline)) 0 var(--separator);
   -webkit-backdrop-filter: blur(var(--blur-bar)) saturate(var(--material-saturation));
@@ -373,43 +374,16 @@ html[data-keyboard="open"] #keybar {
 }
 
 .keys-main,
-.keys-arrows {
-  display: grid;
-  gap: var(--key-gap);
-  grid-template-columns: repeat(var(--key-columns), minmax(0, 1fr));
-  grid-auto-rows: var(--touch-target);
-}
-
-.keys-main {
-  --key-columns: 2;
-  flex: 2 1 0;
-  grid-template-areas:
-    "esc tab"
-    "ctrl prefix";
-}
-
-.keys-arrows {
-  --key-columns: 3;
-  --key-gap: var(--space-1);
-  flex: 3 1 0;
-  grid-template-areas:
-    ". up ."
-    "left down right";
-}
-
+.keys-arrows,
 .keys-keyboard {
   display: flex;
-  flex: 0 0 3.25rem;
+  gap: var(--key-gap);
+  min-width: 0;
 }
 
-.key-esc { grid-area: esc; }
-.key-tab { grid-area: tab; }
-.key-ctrl { grid-area: ctrl; }
-.key-prefix { grid-area: prefix; }
-.key-up { grid-area: up; }
-.key-left { grid-area: left; }
-.key-down { grid-area: down; }
-.key-right { grid-area: right; }
+.keys-main { flex: 3 1 0; }
+.keys-arrows { flex: 4 1 0; }
+.keys-keyboard { flex: 1 1 0; }
 
 .key {
   --key-bg: var(--key-function);
@@ -418,9 +392,9 @@ html[data-keyboard="open"] #keybar {
   align-items: center;
   justify-content: center;
   flex: 1;
-  min-width: max(var(--touch-target), min-content);
+  min-width: 0;
   min-height: var(--touch-target);
-  padding: 0 var(--space-1);
+  padding: 0;
   border: 0;
   border-radius: var(--radius-key);
   background: var(--key-bg);
@@ -444,6 +418,12 @@ html[data-keyboard="open"] #keybar {
   --key-bg-pressed: var(--key-function);
 }
 
+.key-arrow svg,
+.key-tab svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
 .key.pressed {
   background: var(--key-bg-pressed);
 }
@@ -451,12 +431,6 @@ html[data-keyboard="open"] #keybar {
 .key.active {
   background: var(--accent-fill);
   color: var(--on-accent);
-}
-
-.key[hidden] {
-  display: flex;
-  visibility: hidden;
-  pointer-events: none;
 }
 
 .key-hint {

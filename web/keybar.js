@@ -24,7 +24,6 @@ const KeyBar = (() => {
 
   const create = ({ container, send, applicationCursorMode, keyboard }) => {
     let ctrlActive = false;
-    let prefix = null;
 
     const hint = document.createElement('div');
     hint.className = 'key-hint';
@@ -58,17 +57,6 @@ const KeyBar = (() => {
     });
     ctrlKey.setAttribute('aria-pressed', 'false');
 
-    const prefixKey = key({
-      slot: 'prefix',
-      name: 'tmux prefix',
-      label: 'Prefix',
-      onPress: () => {
-        if (prefix) send(prefix);
-      },
-      onClick: raiseKeyboard,
-    });
-    prefixKey.hidden = true;
-
     const keyboardKey = key({
       slot: 'keyboard',
       name: 'Show keyboard',
@@ -83,11 +71,10 @@ const KeyBar = (() => {
         key({ slot: 'esc', name: 'Escape', label: 'esc', onPress: () => send('\x1b') }),
         key({ slot: 'tab', name: 'Tab', icon: ICONS.tab, onPress: () => send('\t') }),
         ctrlKey,
-        prefixKey,
       ]),
       group('keys-arrows', [
-        arrowKey('up', 'Up', 'A'),
         arrowKey('left', 'Left', 'D'),
+        arrowKey('up', 'Up', 'A'),
         arrowKey('down', 'Down', 'B'),
         arrowKey('right', 'Right', 'C'),
       ]),
@@ -120,10 +107,6 @@ const KeyBar = (() => {
     }
 
     return {
-      setPrefix(value) {
-        prefix = Keys.prefixBytes(value);
-        prefixKey.hidden = !prefix;
-      },
       setKeyboardShowing(showing) {
         keyboardKey.setAttribute('aria-pressed', String(showing));
         keyboardKey.setAttribute('aria-label', showing ? 'Hide keyboard' : 'Show keyboard');

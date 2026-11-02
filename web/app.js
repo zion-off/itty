@@ -103,12 +103,7 @@
       sendResize();
     };
     socket.onmessage = (event) => {
-      if (event.data instanceof ArrayBuffer) {
-        term.write(new Uint8Array(event.data));
-        return;
-      }
-      const message = JSON.parse(event.data);
-      if (message.type === 'prefix') keyBar.setPrefix(message.value);
+      if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
     };
     socket.onclose = () => {
       console.warn('itty: connection closed');
