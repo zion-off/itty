@@ -42,10 +42,11 @@ type Deps struct {
 
 type Server struct {
 	Deps
+	assets *assets
 }
 
 func New(d Deps) http.Handler {
-	s := &Server{Deps: d}
+	s := &Server{Deps: d, assets: newAssets(web.Files())}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/challenge", s.handleChallenge)
 	mux.HandleFunc("POST /auth/verify", s.handleVerify)
@@ -54,7 +55,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /enroll/finish", s.handleEnrollFinish)
 	mux.HandleFunc("GET /status", s.handleStatus)
 	mux.HandleFunc("GET /ws", s.handleWebsocket)
-	mux.Handle("GET /", http.FileServerFS(web.Files()))
+	mux.Handle("GET /", s.assets)
 	return s.requireHostname(mux)
 }
 

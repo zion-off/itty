@@ -8,7 +8,6 @@ import (
 
 	"github.com/zion/itty/internal/auth"
 	"github.com/zion/itty/internal/logging"
-	"github.com/zion/itty/web"
 )
 
 const maxBodyBytes = 64 * 1024
@@ -53,7 +52,7 @@ func (s *Server) handleEnrollPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	http.ServeFileFS(w, r, web.Files(), "enroll.html")
+	s.assets.serve(w, r, "enroll.html")
 }
 
 func (s *Server) handleEnrollBegin(w http.ResponseWriter, r *http.Request) {

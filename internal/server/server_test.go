@@ -374,3 +374,57 @@ func TestPrefixIsSentAfterAttach(t *testing.T) {
 		t.Fatalf("got %d %q %v", typ, data, err)
 	}
 }
+
+func TestStaticFilesMustBeRevalidatedAndSupportConditionalRequests(t *testing.T) {
+	e := setup(t)
+	resp, err := http.Get(e.base + "/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	etag := resp.Header.Get("ETag")
+	if resp.StatusCode != 200 || etag == "" || resp.Header.Get("Cache-Control") != "no-cache" {
+		t.Fatalf("status=%d etag=%q cache-control=%q", resp.StatusCode, etag, resp.Header.Get("Cache-Control"))
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "javascript") {
+		t.Fatalf("content type = %q", ct)
+	}
+
+	req, _ := http.NewRequest("GET", e.base+"/app.js", nil)
+	req.Header.Set("If-None-Match", etag)
+	again, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again.Body.Close()
+	if again.StatusCode != http.StatusNotModified {
+		t.Fatalf("a matching ETag should give 304, got %d", again.StatusCode)
+	}
+}
+
+func TestStaticHandlerHidesDirectoriesAndUnknownFiles(t *testing.T) {
+	e := setup(t)
+	for _, path := range []string{"/vendor/", "/vendor", "/nope.js", "/../go.mod", "/%2e%2e/go.mod"} {
+		resp, err := http.Get(e.base + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("GET %s = %d, want 404", path, resp.StatusCode)
+		}
+	}
+}
+
+func TestRootServesTheIndexPage(t *testing.T) {
+	e := setup(t)
+	resp, err := http.Get(e.base + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 || !strings.Contains(string(body), "<title>itty</title>") {
+		t.Fatalf("%d %s", resp.StatusCode, body)
+	}
+}
