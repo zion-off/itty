@@ -1,98 +1,119 @@
+const ControlType = Object.freeze({
+    sessions: 'sessions',
+    windows: 'windows',
+    error: 'error',
+    switch: 'switch',
+    select: 'select',
+    newWindow: 'new_window',
+    closeWindow: 'close_window',
+    list: 'list',
+    resize: 'resize',
+});
 const Sessions = (() => {
-  const parse = (raw) => {
-    if (typeof raw !== 'string') return null;
-    try {
-      const message = JSON.parse(raw);
-      return message && typeof message === 'object' ? message : null;
-    } catch (err) {
-      return null;
-    }
-  };
-
-  const isName = (value) => typeof value === 'string' && value !== '';
-
-  const isSessionList = (message) =>
-    isName(message.current) &&
-    Array.isArray(message.sessions) &&
-    message.sessions.every(isName) &&
-    message.sessions.includes(message.current);
-
-  const isWindow = (w) =>
-    w && typeof w === 'object' && isName(w.id) && typeof w.name === 'string' && Number.isInteger(w.index) && typeof w.active === 'boolean';
-
-  const isWindowList = (message) =>
-    isName(message.session) && Array.isArray(message.windows) && message.windows.every(isWindow);
-
-  const create = () => {
-    let current = null;
-    let list = [];
-    let pending = null;
-    const windows = new Map();
-
-    const applySessions = (message) => {
-      const reset = message.current !== current;
-      current = message.current;
-      list = [...message.sessions];
-      pending = null;
-      return { type: 'sessions', reset };
+    const GENERIC_ERROR = 'request failed';
+    const parse = (raw) => {
+        if (typeof raw !== 'string')
+            return null;
+        try {
+            const message = JSON.parse(raw);
+            return Narrow.isRecord(message) ? message : null;
+        }
+        catch {
+            return null;
+        }
     };
-
-    const applyError = (message) => {
-      pending = null;
-      return { type: 'error', message: typeof message.message === 'string' ? message.message : 'request failed' };
+    const isName = (value) => typeof value === 'string' && value !== '';
+    const isNameList = (value) => Array.isArray(value) && value.every(isName);
+    const isSessionList = (message) => isName(message['current']) &&
+        isNameList(message['sessions']) &&
+        message['sessions'].includes(message['current']);
+    const isWindow = (w) => Narrow.isRecord(w) &&
+        isName(w['id']) &&
+        typeof w['name'] === 'string' &&
+        Number.isInteger(w['index']) &&
+        typeof w['active'] === 'boolean';
+    const isWindowList = (message) => isName(message['session']) && Array.isArray(message['windows']) && message['windows'].every(isWindow);
+    const create = () => {
+        let current = null;
+        let list = [];
+        let pending = null;
+        const windows = new Map();
+        const copyWindows = (stored) => stored.map((w) => ({ ...w }));
+        const applySessions = (message) => {
+            const reset = message.current !== current;
+            current = message.current;
+            list = [...message.sessions];
+            pending = null;
+            return { type: ControlType.sessions, reset };
+        };
+        const applyError = (message) => {
+            pending = null;
+            return {
+                type: ControlType.error,
+                message: typeof message['message'] === 'string' ? message['message'] : GENERIC_ERROR,
+            };
+        };
+        const applyWindows = (message) => {
+            windows.set(message.session, copyWindows(message.windows));
+            return { type: ControlType.windows, session: message.session };
+        };
+        const hasWindow = (session, windowId) => (windows.get(session) ?? []).some((w) => w.id === windowId);
+        return {
+            receive(raw) {
+                const message = parse(raw);
+                if (!message)
+                    return null;
+                if (message['type'] === ControlType.sessions && isSessionList(message))
+                    return applySessions(message);
+                if (message['type'] === ControlType.windows && isWindowList(message))
+                    return applyWindows(message);
+                if (message['type'] === ControlType.error)
+                    return applyError(message);
+                return null;
+            },
+            switchMessage(name) {
+                if (name === current || !list.includes(name))
+                    return null;
+                pending = name;
+                return JSON.stringify({ type: ControlType.switch, session: name });
+            },
+            windowsMessage(session) {
+                return list.includes(session) ? JSON.stringify({ type: ControlType.windows, session }) : null;
+            },
+            selectMessage(session, windowId) {
+                if (!hasWindow(session, windowId) || !list.includes(session))
+                    return null;
+                if (session !== current)
+                    pending = session;
+                return JSON.stringify({ type: ControlType.select, session, window: windowId });
+            },
+            newWindowMessage(session) {
+                if (!list.includes(session))
+                    return null;
+                if (session !== current)
+                    pending = session;
+                return JSON.stringify({ type: ControlType.newWindow, session });
+            },
+            closeWindowMessage(session, windowId) {
+                if (!hasWindow(session, windowId) || !list.includes(session))
+                    return null;
+                return JSON.stringify({ type: ControlType.closeWindow, session, window: windowId });
+            },
+            windowsOf(session) {
+                const stored = windows.get(session);
+                return stored ? copyWindows(stored) : null;
+            },
+            listMessage: () => JSON.stringify({ type: ControlType.list }),
+            forget() {
+                current = null;
+                list = [];
+                pending = null;
+                windows.clear();
+            },
+            state: () => ({ current, sessions: [...list], pending }),
+        };
     };
-
-    const applyWindows = (message) => {
-      windows.set(message.session, message.windows.map((w) => ({ ...w })));
-      return { type: 'windows', session: message.session };
-    };
-
-    return {
-      receive(raw) {
-        const message = parse(raw);
-        if (!message) return null;
-        if (message.type === 'sessions' && isSessionList(message)) return applySessions(message);
-        if (message.type === 'windows' && isWindowList(message)) return applyWindows(message);
-        if (message.type === 'error') return applyError(message);
-        return null;
-      },
-      switchMessage(name) {
-        if (name === current || !list.includes(name)) return null;
-        pending = name;
-        return JSON.stringify({ type: 'switch', session: name });
-      },
-      windowsMessage(session) {
-        return list.includes(session) ? JSON.stringify({ type: 'windows', session }) : null;
-      },
-      selectMessage(session, windowId) {
-        const known = (windows.get(session) ?? []).some((w) => w.id === windowId);
-        if (!known || !list.includes(session)) return null;
-        if (session !== current) pending = session;
-        return JSON.stringify({ type: 'select', session, window: windowId });
-      },
-      newWindowMessage(session) {
-        if (!list.includes(session)) return null;
-        if (session !== current) pending = session;
-        return JSON.stringify({ type: 'new_window', session });
-      },
-      closeWindowMessage(session, windowId) {
-        const known = (windows.get(session) ?? []).some((w) => w.id === windowId);
-        if (!known || !list.includes(session)) return null;
-        return JSON.stringify({ type: 'close_window', session, window: windowId });
-      },
-      windowsOf: (session) => (windows.has(session) ? windows.get(session).map((w) => ({ ...w })) : null),
-      listMessage: () => JSON.stringify({ type: 'list' }),
-      forget() {
-        current = null;
-        list = [];
-        pending = null;
-        windows.clear();
-      },
-      state: () => ({ current, sessions: [...list], pending }),
-    };
-  };
-
-  return { create };
+    return { create };
 })();
-
-if (typeof module !== 'undefined') module.exports = Sessions;
+if (typeof module !== 'undefined')
+    module.exports = Sessions;
