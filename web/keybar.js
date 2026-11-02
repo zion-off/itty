@@ -52,13 +52,11 @@ const KeyBar = (() => {
       else el.textContent = label;
       el.className = arrow ? 'key key-arrow' : 'key';
       el.setAttribute('aria-label', name);
-      const release = () => el.classList.remove('pressed');
+      Press.attach(el, { scale: 0.92 });
       el.addEventListener('pointerdown', (event) => {
         event.preventDefault();
-        el.classList.add('pressed');
         onPress();
       });
-      ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => el.addEventListener(type, release));
       el.addEventListener('click', (event) => {
         if (event.detail === 0) onPress();
         if (onClick) onClick();

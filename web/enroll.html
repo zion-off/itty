@@ -12,15 +12,21 @@
 </head>
 <body class="page">
 <main class="card">
-  <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <rect x="5" y="11" width="14" height="10" rx="3"/>
-    <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+  <svg class="mark" viewBox="0 0 96 96" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect class="mark-field" width="96" height="96" rx="21.5"/>
+    <path class="mark-glyph" d="M30 34 48 48 30 62M52 63H68"/>
   </svg>
   <h1>Enroll a passkey</h1>
   <p class="card-text">Register this device so it can unlock itty with Face ID.</p>
   <button id="enroll" class="pill" type="button">Register passkey</button>
-  <p id="status" class="status" role="status"></p>
+  <div id="status" class="status" role="status">
+    <span class="spinner" aria-hidden="true"></span>
+    <span class="status-text"></span>
+  </div>
 </main>
+<script src="/spring.js"></script>
+<script src="/press.js"></script>
+<script src="/status.js"></script>
 <script src="/passkey.js"></script>
 <script src="/enroll.js"></script>
 </body>

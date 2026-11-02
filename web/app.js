@@ -1,16 +1,17 @@
 (() => {
   const app = document.getElementById('app');
   const lock = document.getElementById('lock');
-  const lockStatus = document.getElementById('lock-status');
   const unlockButton = document.getElementById('unlock');
   const terminalElement = document.getElementById('terminal');
+  const lockStatus = StatusLine.create(document.getElementById('lock-status'));
+  const lockPresence = Presence.create({ element: lock, visible: true });
   const certWarning = document.getElementById('cert-warning');
   const CERT_WARNING_DAYS = 14;
   const UNLOCK_TIMEOUT_MS = 30000;
 
   const term = new Terminal({
     cursorBlink: true,
-    fontSize: 14,
+    fontSize: TerminalTheme.fontSize(),
     fontFamily: TerminalTheme.fontFamily,
     theme: TerminalTheme.current(),
     scrollback: 0,
@@ -60,11 +61,13 @@
     document.body.classList.toggle('locked', locked);
     app.inert = locked;
     lock.inert = !locked;
+    if (locked) lockPresence.show();
+    else lockPresence.hide();
   }
 
-  function showLock(message) {
+  function showLock(message, tone) {
     setLocked(true);
-    lockStatus.textContent = message || '';
+    lockStatus.show(message, tone);
     refreshCertWarning();
   }
 
@@ -76,11 +79,11 @@
     }
   }
 
-  function lockDown(message) {
+  function lockDown(message, tone) {
     attempts.cancel();
     closeSocket();
     term.reset();
-    showLock(message);
+    showLock(message, tone);
   }
 
   function sendResize() {
@@ -94,6 +97,7 @@
     socket = new WebSocket(`${scheme}://${location.host}/ws?ticket=${encodeURIComponent(ticket)}`);
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
+      console.info('itty: connected');
       setLocked(false);
       fit.fit();
       sendResize();
@@ -106,7 +110,10 @@
       const message = JSON.parse(event.data);
       if (message.type === 'prefix') keyBar.setPrefix(message.value);
     };
-    socket.onclose = () => lockDown('Disconnected');
+    socket.onclose = () => {
+      console.warn('itty: connection closed');
+      lockDown('Disconnected. Tap Unlock to reconnect.', 'info');
+    };
   }
 
   function describeFailure(result) {
@@ -116,13 +123,14 @@
 
   async function unlock() {
     if (socket) return;
-    lockStatus.textContent = '';
+    lockStatus.show('Waiting for your passkey…', 'pending');
     const result = await attempts.start((signal) => Passkey.login({ signal }));
     if (result.status === 'stale') return;
     if (result.status === 'ok') {
       connect(result.value);
     } else {
-      showLock(describeFailure(result));
+      console.warn('itty: unlock attempt ended', result.status, result.error);
+      showLock(describeFailure(result), 'error');
     }
   }
 
@@ -136,6 +144,7 @@
   }
   window.addEventListener('resize', fitToViewport);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fitToViewport);
+  Press.attach(unlockButton, { scale: 0.97 });
   unlockButton.addEventListener('click', unlock);
   terminalElement.addEventListener('click', () => {
     if (!keyboard.isShowing()) keyboard.show();

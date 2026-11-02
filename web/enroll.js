@@ -1,22 +1,19 @@
 (() => {
   const button = document.getElementById('enroll');
-  const status = document.getElementById('status');
+  const status = StatusLine.create(document.getElementById('status'));
   const token = location.hash.slice(1);
   history.replaceState(null, '', location.pathname);
-
-  function showStatus(message, outcome) {
-    status.textContent = message;
-    status.dataset.outcome = outcome || '';
-  }
+  Press.attach(button, { scale: 0.97 });
 
   button.addEventListener('click', async () => {
     button.disabled = true;
-    showStatus('');
+    status.show('Waiting for your passkey…', 'pending');
     try {
       await Passkey.enroll(token);
-      showStatus('Passkey registered. You can close this page.', 'success');
+      status.show('Passkey registered. You can close this page.', 'success');
     } catch (err) {
-      showStatus(`Enrollment failed: ${err.message}`, 'error');
+      console.warn('itty: enrollment failed', err);
+      status.show(`Enrollment failed: ${err.message}`, 'error');
       button.disabled = false;
     }
   });

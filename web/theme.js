@@ -1,12 +1,7 @@
 const TerminalTheme = (() => {
   const fontFamily = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, monospace';
 
-  const dark = {
-    background: '#000000',
-    foreground: '#f2f2f7',
-    cursor: '#0a84ff',
-    cursorAccent: '#000000',
-    selectionBackground: 'rgba(10, 132, 255, 0.35)',
+  const darkAnsi = {
     black: '#1c1c1e',
     red: '#ff453a',
     green: '#32d74b',
@@ -25,12 +20,7 @@ const TerminalTheme = (() => {
     brightWhite: '#ffffff',
   };
 
-  const light = {
-    background: '#ffffff',
-    foreground: '#1c1c1e',
-    cursor: '#007aff',
-    cursorAccent: '#ffffff',
-    selectionBackground: 'rgba(0, 122, 255, 0.25)',
+  const lightAnsi = {
     black: '#1c1c1e',
     red: '#d70015',
     green: '#248a3d',
@@ -49,9 +39,23 @@ const TerminalTheme = (() => {
     brightWhite: '#636366',
   };
 
+  const FONT_SCALE = 0.85;
   const query = window.matchMedia('(prefers-color-scheme: dark)');
-  const current = () => (query.matches ? dark : light);
-  const onChange = (listener) => query.addEventListener('change', () => listener(current()));
+  const root = document.documentElement;
 
-  return { fontFamily, current, onChange };
+  const token = (name) => getComputedStyle(root).getPropertyValue(name).trim();
+
+  const surface = () => ({
+    background: token('--terminal-bg'),
+    foreground: token('--terminal-fg'),
+    cursor: token('--accent'),
+    cursorAccent: token('--terminal-bg'),
+    selectionBackground: token('--terminal-selection'),
+  });
+
+  const current = () => ({ ...(query.matches ? darkAnsi : lightAnsi), ...surface() });
+  const onChange = (listener) => query.addEventListener('change', () => listener(current()));
+  const fontSize = () => Math.round(parseFloat(getComputedStyle(root).fontSize) * FONT_SCALE);
+
+  return { fontFamily, fontSize, current, onChange };
 })();

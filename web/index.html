@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-keyboard="closed">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
@@ -23,11 +23,12 @@
 </div>
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lock-title">
   <div class="lock-content">
-    <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <rect x="5" y="11" width="14" height="10" rx="3"/>
-      <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+    <svg class="mark" viewBox="0 0 96 96" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect class="mark-field" width="96" height="96" rx="21.5"/>
+      <path class="mark-glyph" d="M30 34 48 48 30 62M52 63H68"/>
     </svg>
     <h1 id="lock-title">itty</h1>
+    <p class="lock-subtitle">Locked</p>
     <button id="unlock" class="pill" type="button">
       <svg class="pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M4 8.5V7a3 3 0 0 1 3-3h1.5M15.5 4H17a3 3 0 0 1 3 3v1.5M20 15.5V17a3 3 0 0 1-3 3h-1.5M8.5 20H7a3 3 0 0 1-3-3v-1.5"/>
@@ -35,7 +36,10 @@
       </svg>
       <span>Unlock</span>
     </button>
-    <p id="lock-status" class="lock-status" role="status"></p>
+    <div id="lock-status" class="status" role="status">
+      <span class="spinner" aria-hidden="true"></span>
+      <span class="status-text"></span>
+    </div>
     <p id="cert-warning" class="lock-note" role="status"></p>
   </div>
 </div>
@@ -43,6 +47,10 @@
 <script src="/vendor/addon-fit.js"></script>
 <script src="/theme.js"></script>
 <script src="/attempts.js"></script>
+<script src="/spring.js"></script>
+<script src="/presence.js"></script>
+<script src="/press.js"></script>
+<script src="/status.js"></script>
 <script src="/keyboard.js"></script>
 <script src="/passkey.js"></script>
 <script src="/keys.js"></script>
