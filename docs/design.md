@@ -137,7 +137,11 @@ The client listens for the page becoming hidden and visible. When the page is hi
 
 ### Key bar
 
-The iOS keyboard has no Ctrl, Esc, Tab or arrow keys, so the client shows a key bar. It has a sticky Ctrl key, which applies to the next key typed and sends the matching control byte. It also has Esc, Tab and the arrow keys, which repeat while held, and a key that shows or hides the iOS keyboard. The keys sit in one row. The operator types the tmux prefix with the sticky Ctrl key and the next key. Macro buttons are possible later, and the set of macros is an open question.
+The iOS keyboard has no Ctrl, Esc, Tab or arrow keys, so the client shows a key bar. It has a sticky Ctrl key, which applies to the next key typed and sends the matching control byte. It also has Esc, Tab and the arrow keys, which repeat while held, and a key that shows or hides the iOS keyboard. The keys sit in one row. The operator types the tmux prefix with the sticky Ctrl key and the next key. While the iOS keyboard is closed, the key bar collapses into a small capsule at the bottom centre that floats over the terminal. Tapping it expands it into the key row, and it collapses again after four seconds without a key press. While the iOS keyboard is open, the key row stays expanded in a flat strip above the keyboard.
+
+Some keys hide extra keys that the operator reaches by dragging the key upward, or by holding it for 250 ms. A menu opens above the key, the finger slides onto an option, and lifting the finger sends it. Lifting anywhere else cancels. Esc offers `Ctrl-C`, `Ctrl-D` and `Ctrl-Z`, Tab offers `Shift-Tab`, the `/` key offers `|`, `~`, a backtick, `\` and `-`, and each arrow key offers the navigation key in its own direction (`Home`, `PgUp`, `PgDn`, `End`). A key with extra keys sends its own key when it is released after a tap, not when it is pressed. An arrow key that is held for 300 ms repeats instead of opening the menu. A key with extra keys shows a small dot in its corner.
+
+Macro buttons are possible later, and the set of macros is an open question.
 
 A hardware keyboard works without the key bar, because xterm.js passes its keystrokes straight to the pty.
 
