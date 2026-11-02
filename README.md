@@ -29,6 +29,20 @@ go build -o bin/itty ./cmd/itty
 
 Add the page to your home screen from the browser's share menu.
 
+## Run it as a service
+
+`deploy/itty.service` is a systemd unit that starts itty at boot, restarts it if it crashes, and runs it as your user. Replace `@USER@` with your user name and `@DIR@` with the directory that holds `bin/itty` and `itty.toml`, then install it:
+
+```
+sed -e "s|@USER@|$USER|g" -e "s|@DIR@|$PWD|g" deploy/itty.service | sudo tee /etc/systemd/system/itty.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now itty
+```
+
+Use `systemctl status itty` to check it and `tail -f itty.log` to follow the structured log. After you rebuild the binary, run `sudo systemctl restart itty`.
+
+The unit sets `KillMode=process`. Without it, systemd would also kill the tmux server when itty stops or restarts, because tmux starts inside the service, and that would end your session and everything running in it. The unit has no sandboxing options on purpose, because the shell that a login opens must have the same access as you do.
+
 ## Certificate
 
 itty reads the certificate and key from files and reloads them when they change, so renewing needs no restart. `itty renew-cert` gets and renews the certificate with a Let's Encrypt DNS-01 challenge.
