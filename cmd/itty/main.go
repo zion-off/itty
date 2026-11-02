@@ -25,6 +25,10 @@ var commands = map[string]command{
 	"enroll":     withConfig("enroll", enroll),
 	"renew-cert": renewCommand,
 	"service":    serviceCommand,
+	"start":      serviceAlias("start"),
+	"stop":       serviceAlias("stop"),
+	"restart":    serviceAlias("restart"),
+	"status":     serviceAlias("status"),
 	"serve":      withConfig("serve", serve),
 }
 
@@ -47,6 +51,12 @@ func run(args []string) error {
 	return cmd(args)
 }
 
+func serviceAlias(action string) command {
+	return func(args []string) error {
+		return serviceCommand(append([]string{action}, args...))
+	}
+}
+
 func commandNames() []string {
 	names := make([]string, 0, len(commands))
 	for n := range commands {
@@ -59,11 +69,11 @@ func commandNames() []string {
 func withConfig(name string, fn func(cfg config.Config, log *slog.Logger) error) command {
 	return func(args []string) error {
 		fs := flag.NewFlagSet("itty "+name, flag.ContinueOnError)
-		configPath := fs.String("config", defaultConfigPath, "path to the configuration file")
+		configPath := configPathFlag(fs)
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		return runWithConfig(*configPath, fn)
+		return runWithConfig(configPath(), fn)
 	}
 }
 

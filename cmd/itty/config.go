@@ -19,7 +19,7 @@ const configUsage = "usage: itty config <show | get KEY | set KEY VALUE> [-confi
 
 func configCommand(args []string) error {
 	fs := flag.NewFlagSet("itty config", flag.ContinueOnError)
-	configPath := fs.String("config", defaultConfigPath, "path to the configuration file")
+	configPath := configPathFlag(fs)
 	words, err := parseInterspersed(fs, args)
 	if err != nil {
 		return err
@@ -28,11 +28,12 @@ func configCommand(args []string) error {
 		return errors.New(configUsage)
 	}
 
-	cfg, err := config.LoadRaw(*configPath)
+	path := configPath()
+	cfg, err := config.LoadRaw(path)
 	if err != nil {
 		return err
 	}
-	log, closeLog, err := logging.New(cfg.Resolved(filepath.Dir(*configPath)).LogFile)
+	log, closeLog, err := logging.New(cfg.Resolved(filepath.Dir(path)).LogFile)
 	if err != nil {
 		return err
 	}
@@ -44,7 +45,7 @@ func configCommand(args []string) error {
 	case action == "get" && len(rest) == 1:
 		return configGet(cfg, rest[0], os.Stdout)
 	case action == "set" && len(rest) == 2:
-		return configSet(*configPath, cfg, rest[0], rest[1], os.Stdout, log)
+		return configSet(path, cfg, rest[0], rest[1], os.Stdout, log)
 	}
 	return errors.New(configUsage)
 }

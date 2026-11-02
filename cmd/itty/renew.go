@@ -28,13 +28,13 @@ var dnsProviders = map[string]dns.Factory{
 
 func renewCommand(args []string) error {
 	fs := flag.NewFlagSet("itty renew-cert", flag.ContinueOnError)
-	configPath := fs.String("config", defaultConfigPath, "path to the configuration file")
+	configPath := configPathFlag(fs)
 	force := fs.Bool("force", false, "request a new certificate even if the current one is not close to expiry")
 	acceptTOS := fs.Bool("accept-tos", false, "accept the certificate authority's terms of service when creating the ACME account")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	return runWithConfig(*configPath, func(cfg config.Config, log *slog.Logger) error {
+	return runWithConfig(configPath(), func(cfg config.Config, log *slog.Logger) error {
 		return renewCert(cfg, log, *force, *acceptTOS)
 	})
 }

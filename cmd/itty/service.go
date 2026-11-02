@@ -25,7 +25,7 @@ func serviceCommand(args []string) error {
 	action := args[0]
 
 	fs := flag.NewFlagSet("itty service "+action, flag.ContinueOnError)
-	configPath := fs.String("config", defaultConfigPath, "path to the configuration file")
+	configPath := configPathFlag(fs)
 	killSession := fs.Bool("kill-session", false, "with stop: also end the tmux session")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
@@ -34,8 +34,9 @@ func serviceCommand(args []string) error {
 		return errors.New("-kill-session only applies to stop")
 	}
 
-	return runWithConfig(*configPath, func(cfg config.Config, log *slog.Logger) error {
-		return runService(cfg, log, action, *configPath, *killSession)
+	path := configPath()
+	return runWithConfig(path, func(cfg config.Config, log *slog.Logger) error {
+		return runService(cfg, log, action, path, *killSession)
 	})
 }
 
