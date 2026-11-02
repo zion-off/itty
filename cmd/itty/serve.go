@@ -17,6 +17,7 @@ import (
 	"github.com/zion/itty/internal/certs"
 	"github.com/zion/itty/internal/clock"
 	"github.com/zion/itty/internal/config"
+	"github.com/zion/itty/internal/lastsession"
 	"github.com/zion/itty/internal/ratelimit"
 	"github.com/zion/itty/internal/server"
 	"github.com/zion/itty/internal/terminal"
@@ -56,9 +57,12 @@ func serve(cfg config.Config, log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	tmux := terminal.TmuxLauncher{Log: log}
 	deps := server.Deps{
 		Hostname:       cfg.Hostname,
-		Launcher:       terminal.TmuxLauncher{Log: log},
+		Launcher:       tmux,
+		Sessions:       tmux,
+		LastSession:    lastsession.NewFileStore(cfg.LastSessionPath()),
 		DefaultSession: cfg.TmuxSession,
 		Auth:           authService,
 		Limiter:        ratelimit.NewFailureLimiter(clk, maxFailedLogins, failureWindow),
