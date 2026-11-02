@@ -7,9 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"strings"
 	"sync"
-	"time"
 
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
@@ -88,26 +86,4 @@ func (s *ptySession) Wait() (int, error) {
 		s.log.Info("terminal process exited", "pid", s.cmd.Process.Pid, "exit_code", s.exitCode)
 	})
 	return s.exitCode, s.waitErr
-}
-
-const (
-	prefixAttempts = 10
-	prefixRetry    = 100 * time.Millisecond
-)
-
-func (l TmuxLauncher) Prefix(ctx context.Context) (string, error) {
-	var lastErr error
-	for attempt := 0; attempt < prefixAttempts; attempt++ {
-		out, err := exec.CommandContext(ctx, "tmux", "show-options", "-gv", "prefix").Output()
-		if err == nil {
-			return strings.TrimSpace(string(out)), nil
-		}
-		lastErr = err
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-time.After(prefixRetry):
-		}
-	}
-	return "", fmt.Errorf("read tmux prefix: %w", lastErr)
 }

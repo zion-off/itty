@@ -82,8 +82,6 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	s.sendPrefix(ctx, conn, log)
-
 	go func() {
 		defer cancel()
 		pumpOutput(conn, session, log)
@@ -160,20 +158,4 @@ func pumpInput(conn *websocket.Conn, session terminal.Session, log *slog.Logger)
 			}
 		}
 	}
-}
-
-func (s *Server) sendPrefix(ctx context.Context, conn *websocket.Conn, log *slog.Logger) {
-	if s.Prefix == nil {
-		return
-	}
-	prefix, err := s.Prefix.Prefix(ctx)
-	if err != nil {
-		log.Warn("tmux prefix unavailable", "error", err)
-		return
-	}
-	if err := conn.WriteJSON(map[string]string{"type": "prefix", "value": prefix}); err != nil {
-		log.Warn("sending tmux prefix failed", "error", err)
-		return
-	}
-	log.Info("tmux prefix sent", "prefix", prefix)
 }

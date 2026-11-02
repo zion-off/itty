@@ -34,7 +34,7 @@ The first thing to check on the phone is whether the VPN's DNS resolver accepts 
 
 ## 5. Key bar
 
-Add the sticky Ctrl key, the Prefix button, Esc, Tab and the arrow keys. Have the server read the tmux prefix at attach and send it to the client. Test on the phone, and add the home-screen PWA manifest if it was not added earlier.
+Add the sticky Ctrl key, Esc, Tab, the arrow keys and a key that shows the iOS keyboard. Test on the phone, and add the home-screen PWA manifest if it was not added earlier.
 
 ## 6. Touch layer
 

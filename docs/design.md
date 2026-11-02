@@ -108,8 +108,6 @@ The client sends its terminal size when it connects and whenever the size change
 
 The pty must have XON/XOFF flow control turned off. Some operators use Ctrl+s as their tmux prefix, which is also the traditional pause key, and it must reach tmux unchanged.
 
-When a session attaches, the server runs `tmux show-options -gv prefix` and sends the result to the client. The client uses it for the Prefix button, so the button follows the operator's tmux configuration.
-
 ## Extension points
 
 itty follows the SOLID principles from the start. Each part of the program that is expected to vary sits behind a small interface. The code that uses a part depends on the interface and not on a concrete implementation, and one place at startup connects the concrete parts. Adding a variant means adding an implementation, and it does not change existing code.
@@ -133,7 +131,7 @@ The client listens for the page becoming hidden and visible. When the page is hi
 
 ### Key bar
 
-The iOS keyboard has no Ctrl, Esc, Tab or arrow keys, so the client shows a key bar. It has a sticky Ctrl key, which applies to the next key typed and sends the matching control byte. It has a Prefix button that sends the tmux prefix reported by the server. It also has Esc, Tab and the arrow keys. Macro buttons that send the prefix plus a key are possible later, and the set of macros is an open question.
+The iOS keyboard has no Ctrl, Esc, Tab or arrow keys, so the client shows a key bar. It has a sticky Ctrl key, which applies to the next key typed and sends the matching control byte. It also has Esc, Tab and the arrow keys, which repeat while held, and a key that shows or hides the iOS keyboard. The keys sit in one row. The operator types the tmux prefix with the sticky Ctrl key and the next key. Macro buttons are possible later, and the set of macros is an open question.
 
 A hardware keyboard works without the key bar, because xterm.js passes its keystrokes straight to the pty.
 
@@ -182,4 +180,4 @@ The server never logs ticket values, challenge values or terminal input and outp
 
 ## Websocket messages
 
-Binary frames carry terminal data in both directions. Text frames carry JSON control messages. The client sends `{"type":"resize","cols":N,"rows":N}` as its first message and again whenever the size changes. The server sends `{"type":"prefix","value":"C-b"}` after the session attaches. The websocket URL carries the ticket in the `ticket` query parameter, and the server never logs URLs.
+Binary frames carry terminal data in both directions. Text frames carry JSON control messages. The client sends `{"type":"resize","cols":N,"rows":N}` as its first message and again whenever the size changes. The websocket URL carries the ticket in the `ticket` query parameter, and the server never logs URLs.
