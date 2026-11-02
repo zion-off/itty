@@ -62,6 +62,7 @@ func serve(cfg config.Config, log *slog.Logger) error {
 		Hostname:       cfg.Hostname,
 		Launcher:       tmux,
 		Sessions:       tmux,
+		Windows:        tmux,
 		LastSession:    lastsession.NewFileStore(cfg.LastSessionPath()),
 		DefaultSession: cfg.TmuxSession,
 		Auth:           authService,

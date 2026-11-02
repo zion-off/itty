@@ -34,6 +34,7 @@ type Deps struct {
 	Hostname       string
 	Launcher       terminal.Launcher
 	Sessions       terminal.Lister
+	Windows        terminal.Navigator
 	LastSession    LastSessionStore
 	DefaultSession string
 	Auth           Authenticator
@@ -50,6 +51,9 @@ type Server struct {
 func New(d Deps) http.Handler {
 	if d.Sessions == nil {
 		d.Sessions = onlySession(d.DefaultSession)
+	}
+	if d.Windows == nil {
+		d.Windows = noWindows{}
 	}
 	if d.LastSession == nil {
 		d.LastSession = forgetfulStore{}

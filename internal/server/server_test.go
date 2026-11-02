@@ -163,7 +163,9 @@ type env struct {
 	limiter *ratelimit.FailureLimiter
 }
 
-func setup(t *testing.T) env {
+func setup(t *testing.T) env { return setupWith(t, nil) }
+
+func setupWith(t *testing.T, windows terminal.Navigator) env {
 	t.Helper()
 	l := &fakeLauncher{started: make(chan startedSession, 8)}
 	lister := &fakeLister{names: []string{"itty"}}
@@ -171,7 +173,7 @@ func setup(t *testing.T) env {
 	a := &fakeAuth{tickets: map[string]bool{"good": true}}
 	lim := ratelimit.NewFailureLimiter(clock.System{}, 3, time.Minute)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	ts := httptest.NewServer(New(Deps{Hostname: "localhost", Launcher: l, Sessions: lister, LastSession: store, DefaultSession: "itty", Auth: a, Limiter: lim, Log: log}))
+	ts := httptest.NewServer(New(Deps{Hostname: "localhost", Launcher: l, Sessions: lister, Windows: windows, LastSession: store, DefaultSession: "itty", Auth: a, Limiter: lim, Log: log}))
 	t.Cleanup(ts.Close)
 	return env{ts: ts, base: strings.Replace(ts.URL, "127.0.0.1", "localhost", 1), launch: l, lister: lister, store: store, auth: a, limiter: lim}
 }
@@ -597,4 +599,102 @@ func TestStatusReportsCertificateDays(t *testing.T) {
 	if got := body(withoutCerts); got != `{}` {
 		t.Fatalf("got %s", got)
 	}
+}
+
+type fakeNavigator struct {
+	mu       sync.Mutex
+	windows  map[string][]terminal.Window
+	selected []string
+}
+
+func (f *fakeNavigator) Windows(_ context.Context, session string) ([]terminal.Window, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.windows[session], nil
+}
+
+func (f *fakeNavigator) SelectWindow(_ context.Context, session, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, w := range f.windows[session] {
+		if w.ID == id {
+			f.selected = append(f.selected, session+"/"+id)
+			return nil
+		}
+	}
+	return terminal.ErrUnknownWindow
+}
+
+func (f *fakeNavigator) picked() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.selected...)
+}
+
+func withNavigator(t *testing.T, windows map[string][]terminal.Window) (env, *fakeNavigator) {
+	t.Helper()
+	nav := &fakeNavigator{windows: windows}
+	return setupWith(t, nav), nav
+}
+
+func TestWindowsRequestReturnsTheWindowsOfASession(t *testing.T) {
+	e, _ := withNavigator(t, map[string][]terminal.Window{"itty": {{ID: "@1", Index: 0, Name: "zsh", Active: true}}})
+	conn, _, _ := connect(t, e)
+	if err := conn.WriteJSON(map[string]any{"type": "windows", "session": "itty"}); err != nil {
+		t.Fatal(err)
+	}
+	msg := readControl(t, conn)
+	list, _ := msg["windows"].([]any)
+	if msg["type"] != "windows" || msg["session"] != "itty" || len(list) != 1 || list[0].(map[string]any)["id"] != "@1" {
+		t.Fatalf("msg = %v", msg)
+	}
+}
+
+func TestWindowsRequestForAnUnknownSessionIsRejected(t *testing.T) {
+	e, _ := withNavigator(t, nil)
+	conn, _, _ := connect(t, e)
+	_ = conn.WriteJSON(map[string]any{"type": "windows", "session": "-t evil"})
+	if msg := readControl(t, conn); msg["type"] != "error" {
+		t.Fatalf("msg = %v", msg)
+	}
+}
+
+func TestSelectingAWindowOfTheCurrentSessionKeepsTheTerminal(t *testing.T) {
+	e, nav := withNavigator(t, map[string][]terminal.Window{"itty": {{ID: "@2", Name: "logs"}}})
+	conn, _, _ := connect(t, e)
+	_ = conn.WriteJSON(map[string]any{"type": "select", "session": "itty", "window": "@2"})
+	if msg := readControl(t, conn); msg["type"] != "windows" {
+		t.Fatalf("msg = %v", msg)
+	}
+	noStart(t, e.launch)
+	if got := nav.picked(); len(got) != 1 || got[0] != "itty/@2" {
+		t.Fatalf("picked = %v", got)
+	}
+}
+
+func TestSelectingAWindowOfAnotherSessionSelectsThenSwitches(t *testing.T) {
+	e, nav := withNavigator(t, map[string][]terminal.Window{"work": {{ID: "@7", Name: "build"}}})
+	e.lister.set("itty", "work")
+	conn, _, _ := connect(t, e)
+	_ = conn.WriteJSON(map[string]any{"type": "select", "session": "work", "window": "@7"})
+	if got := waitStarted(t, e.launch); got.name != "work" {
+		t.Fatalf("started %q", got.name)
+	}
+	if got := nav.picked(); len(got) != 1 || got[0] != "work/@7" {
+		t.Fatalf("picked = %v", got)
+	}
+	if msg := readControl(t, conn); msg["current"] != "work" {
+		t.Fatalf("msg = %v", msg)
+	}
+}
+
+func TestSelectingAnUnknownWindowIsRejectedAndKeepsTheSession(t *testing.T) {
+	e, _ := withNavigator(t, map[string][]terminal.Window{"work": {{ID: "@7"}}})
+	e.lister.set("itty", "work")
+	conn, _, _ := connect(t, e)
+	_ = conn.WriteJSON(map[string]any{"type": "select", "session": "work", "window": "@99"})
+	if msg := readControl(t, conn); msg["type"] != "error" {
+		t.Fatalf("msg = %v", msg)
+	}
+	noStart(t, e.launch)
 }

@@ -23,6 +23,7 @@ type clientMessage struct {
 	Cols    uint16 `json:"cols"`
 	Rows    uint16 `json:"rows"`
 	Session string `json:"session"`
+	Window  string `json:"window"`
 }
 
 func (s *Server) originAllowed(r *http.Request) bool {

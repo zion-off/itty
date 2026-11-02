@@ -116,6 +116,10 @@ func (c *connection) control(ctx context.Context, data []byte) {
 		}
 	case "switch":
 		c.switchTo(ctx, msg.Session)
+	case "windows":
+		c.sendWindows(ctx, msg.Session)
+	case "select":
+		c.selectWindow(ctx, msg.Session, msg.Window)
 	default:
 		c.log.Debug("ignoring unknown control message", "type", msg.Type)
 	}
@@ -126,7 +130,7 @@ func (c *connection) switchTo(ctx context.Context, name string) {
 		c.sendSessions(ctx)
 		return
 	}
-	if !slices.Contains(c.listSessions(ctx), name) && name != c.srv.DefaultSession {
+	if !c.sessionKnown(ctx, name) {
 		c.log.Warn("session switch rejected", "reason", "unknown session", "requested", name)
 		c.sendError("unknown session")
 		return
@@ -135,6 +139,50 @@ func (c *connection) switchTo(ctx context.Context, name string) {
 		c.log.Error("session switch failed", "to", name, "error", err)
 		c.sendError("could not switch session")
 	}
+}
+
+func (c *connection) sessionKnown(ctx context.Context, name string) bool {
+	return name == c.srv.DefaultSession || name == c.activeName() || slices.Contains(c.listSessions(ctx), name)
+}
+
+func (c *connection) sendWindows(ctx context.Context, session string) {
+	if !c.sessionKnown(ctx, session) {
+		c.log.Warn("window list rejected", "reason", "unknown session", "requested", session)
+		c.sendError("unknown session")
+		return
+	}
+	windows, err := c.srv.Windows.Windows(ctx, session)
+	if err != nil {
+		c.log.Warn("listing tmux windows failed", "session", session, "error", err)
+		c.sendError("could not list windows")
+		return
+	}
+	if windows == nil {
+		windows = []terminal.Window{}
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.writeJSONLocked(map[string]any{"type": "windows", "session": session, "windows": windows}); err != nil {
+		c.log.Warn("sending window list failed", "error", err)
+	}
+}
+
+func (c *connection) selectWindow(ctx context.Context, session, windowID string) {
+	if !c.sessionKnown(ctx, session) {
+		c.log.Warn("window selection rejected", "reason", "unknown session", "requested", session)
+		c.sendError("unknown session")
+		return
+	}
+	if err := c.srv.Windows.SelectWindow(ctx, session, windowID); err != nil {
+		c.log.Warn("window selection failed", "session", session, "window", windowID, "error", err)
+		c.sendError("could not select window")
+		return
+	}
+	if session == c.activeName() {
+		c.sendWindows(ctx, session)
+		return
+	}
+	c.switchTo(ctx, session)
 }
 
 func (c *connection) input(data []byte) {

@@ -1,6 +1,11 @@
 package server
 
-import "context"
+import (
+	"context"
+	"errors"
+
+	"github.com/zion/itty/internal/terminal"
+)
 
 type onlySession string
 
@@ -10,3 +15,10 @@ type forgetfulStore struct{}
 
 func (forgetfulStore) Load() (string, error) { return "", nil }
 func (forgetfulStore) Save(string) error     { return nil }
+
+type noWindows struct{}
+
+func (noWindows) Windows(context.Context, string) ([]terminal.Window, error) { return nil, nil }
+func (noWindows) SelectWindow(context.Context, string, string) error {
+	return errors.New("window selection is not available")
+}
