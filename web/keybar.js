@@ -19,6 +19,7 @@ const KeyBar = (() => {
         tab: 'tab',
         ctrl: 'ctrl',
         slash: 'slash',
+        enter: 'enter',
         keyboard: 'keyboard',
         left: 'left',
         up: 'up',
@@ -29,10 +30,12 @@ const KeyBar = (() => {
         hint: 'Ctrl + next key',
         showKeyboard: 'Show keyboard',
         hideKeyboard: 'Hide keyboard',
+        altEnter: '⌥↩',
     });
     const icon = (paths) => Dom.icon(ICON_STROKE_WIDTH, paths);
     const ICONS = Object.freeze({
         tab: icon('<path d="M4 12h12M12 7l5 5-5 5M20 6v12"/>'),
+        enter: icon('<path d="M19 6v5a3 3 0 0 1-3 3H5M9 10l-4 4 4 4"/>'),
         up: icon('<path d="M6 15l6-6 6 6"/>'),
         down: icon('<path d="M6 9l6 6 6-6"/>'),
         left: icon('<path d="M15 6l-6 6 6 6"/>'),
@@ -47,6 +50,7 @@ const KeyBar = (() => {
     };
     const SYMBOL_VARIANTS = ['|', '~', '`', '\\', '-'];
     const CONTROL_VARIANTS = ['c', 'd', 'z'];
+    const NEWLINE_LETTER = 'j';
     const create = ({ container, hintContainer, send, applicationCursorMode, keyboard, onCtrlChange = () => { }, }) => {
         let ctrlActive = false;
         const flickMenu = FlickMenu.create({ host: hintContainer });
@@ -191,6 +195,13 @@ const KeyBar = (() => {
                 face: { label: SLASH },
                 onPress: () => send(SLASH),
                 flick: SYMBOL_VARIANTS.map(typed),
+            }),
+            key({
+                slot: Slot.enter,
+                name: 'Enter',
+                face: { icon: ICONS.enter },
+                onPress: () => send(Keys.ENTER),
+                flick: [{ label: Label.altEnter, run: () => send(Keys.ALT_ENTER) }, controlVariant(NEWLINE_LETTER)],
             }),
         ]), group(ClassName.arrows, [
             arrowKey(Slot.left, 'Left', ArrowKey.left, { label: 'Home', navigation: NavigationKey.home }),

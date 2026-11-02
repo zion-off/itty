@@ -764,7 +764,7 @@ html[data-keyboard="open"] .dock-handle {
   min-width: 0;
 }
 
-.keys-main { flex: 4 1 0; }
+.keys-main { flex: 5 1 0; }
 .keys-arrows { flex: 4 1 0; }
 .keys-keyboard { flex: 1 1 0; }
 
@@ -802,7 +802,8 @@ html[data-keyboard="open"] .dock-handle {
 }
 
 .key-arrow svg,
-.key-tab svg {
+.key-tab svg,
+.key-enter svg {
   width: 1.125rem;
   height: 1.125rem;
 }
