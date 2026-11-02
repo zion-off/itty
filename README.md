@@ -100,7 +100,7 @@ The default `manual` provider stores no DNS credentials on the VM, but it needs 
 ## Known limits
 
 - Private networks only. The security audit found hardening gaps that matter once the server is reachable from the internet, such as no rate limit on `/auth/challenge`, no security headers and no HTTP read timeouts.
-- The touch layer for scrolling and selecting text on a phone is not built.
+- Touch scrolling and selection work only while the program in the terminal has asked for mouse events, as tmux does with `set -g mouse on`. The drag sensitivity and the long-press delay are constants in `web/gesture.js` and may need tuning on your phone.
 
 ## More
 

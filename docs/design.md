@@ -143,7 +143,9 @@ Many operators use tmux mouse mode, in which tmux asks the terminal to report mo
 
 A vertical drag is sent to tmux as mouse-wheel events at the touch position, because tmux scrolls the pane under the pointer. A tap is sent as a mouse click, which lets tmux select panes and windows. A long press followed by a drag selects text. The terminal area disables Safari's own page scrolling so that gestures reach the touch layer.
 
-The conversion from drag distance to wheel events has a sensitivity value that will need tuning on a real phone.
+The touch layer sends mouse events in the SGR format and acts only while the terminal program has asked for mouse events, so without tmux mouse mode a tap still just opens the keyboard. It ignores a second finger, caps the wheel events sent for one finger movement, and swallows the mouse events that iOS generates after a tap so that tmux does not receive each click twice. After a drag or a selection it suppresses the click that would otherwise open the keyboard.
+
+The conversion from drag distance to wheel events has a sensitivity value (24 pixels per wheel event) and the long press lasts 450 ms. Both will need tuning on a real phone.
 
 ## Logging
 
