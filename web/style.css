@@ -231,6 +231,11 @@ body:not(.locked) #lock {
   transition: background-color 80ms var(--ease), transform 80ms var(--ease);
 }
 
+.key svg {
+  width: 22px;
+  height: 22px;
+}
+
 .key-arrow {
   background: var(--key);
   font-size: 19px;

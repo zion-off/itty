@@ -3,6 +3,7 @@
   const lock = document.getElementById('lock');
   const lockStatus = document.getElementById('lock-status');
   const unlockButton = document.getElementById('unlock');
+  const terminalElement = document.getElementById('terminal');
   const certWarning = document.getElementById('cert-warning');
   const CERT_WARNING_DAYS = 14;
   const UNLOCK_TIMEOUT_MS = 30000;
@@ -19,7 +20,7 @@
   });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
-  term.open(document.getElementById('terminal'));
+  term.open(terminalElement);
 
   const encoder = new TextEncoder();
   let socket = null;
@@ -28,13 +29,19 @@
     if (socket && socket.readyState === WebSocket.OPEN) socket.send(encoder.encode(data));
   }
 
+  const keyboard = Keyboard.create({
+    textarea: term.textarea,
+    onChange: (showing) => {
+      console.info('itty: keyboard', showing ? 'shown' : 'hidden');
+      document.documentElement.dataset.keyboard = showing ? 'open' : 'closed';
+      keyBar.setKeyboardShowing(showing);
+    },
+  });
   const keyBar = KeyBar.create({
     container: document.getElementById('keybar'),
-    send: (data) => {
-      sendText(data);
-      term.focus();
-    },
+    send: sendText,
     applicationCursorMode: () => term.modes.applicationCursorKeysMode,
+    keyboard,
   });
   const attempts = Attempts.create({ timeoutMs: UNLOCK_TIMEOUT_MS });
 
@@ -90,7 +97,6 @@
       setLocked(false);
       fit.fit();
       sendResize();
-      term.focus();
     };
     socket.onmessage = (event) => {
       if (event.data instanceof ArrayBuffer) {
@@ -126,10 +132,14 @@
     const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     document.documentElement.style.setProperty('--app-height', `${height}px`);
     fit.fit();
+    keyboard.refresh();
   }
   window.addEventListener('resize', fitToViewport);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fitToViewport);
   unlockButton.addEventListener('click', unlock);
+  terminalElement.addEventListener('click', () => {
+    if (!keyboard.isShowing()) keyboard.show();
+  });
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
