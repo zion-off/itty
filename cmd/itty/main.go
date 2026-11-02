@@ -18,10 +18,11 @@ const defaultConfigPath = "itty.toml"
 type command func(args []string) error
 
 var commands = map[string]command{
-	"init":   initCommand,
-	"check":  withConfig("check", check),
-	"enroll": withConfig("enroll", enroll),
-	"serve":  withConfig("serve", serve),
+	"init":       initCommand,
+	"check":      withConfig("check", check),
+	"enroll":     withConfig("enroll", enroll),
+	"renew-cert": renewCommand,
+	"serve":      withConfig("serve", serve),
 }
 
 func main() {
@@ -53,21 +54,25 @@ func commandNames() []string {
 }
 
 func withConfig(name string, fn func(cfg config.Config, log *slog.Logger) error) command {
-	return func(args []string) (err error) {
+	return func(args []string) error {
 		fs := flag.NewFlagSet("itty "+name, flag.ContinueOnError)
 		configPath := fs.String("config", defaultConfigPath, "path to the configuration file")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		cfg, err := config.Load(*configPath)
-		if err != nil {
-			return err
-		}
-		log, closeLog, err := logging.New(cfg.LogFile)
-		if err != nil {
-			return err
-		}
-		defer func() { err = errors.Join(err, closeLog()) }()
-		return fn(cfg, log)
+		return runWithConfig(*configPath, fn)
 	}
+}
+
+func runWithConfig(path string, fn func(cfg config.Config, log *slog.Logger) error) (err error) {
+	cfg, err := config.Load(path)
+	if err != nil {
+		return err
+	}
+	log, closeLog, err := logging.New(cfg.LogFile)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, closeLog()) }()
+	return fn(cfg, log)
 }
