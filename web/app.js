@@ -5,6 +5,7 @@
   const unlockButton = document.getElementById('unlock');
   const certWarning = document.getElementById('cert-warning');
   const CERT_WARNING_DAYS = 14;
+  const UNLOCK_TIMEOUT_MS = 30000;
 
   const term = new Terminal({
     cursorBlink: true,
@@ -35,7 +36,7 @@
     },
     applicationCursorMode: () => term.modes.applicationCursorKeysMode,
   });
-  let unlocking = false;
+  const attempts = Attempts.create({ timeoutMs: UNLOCK_TIMEOUT_MS });
 
   async function refreshCertWarning() {
     try {
@@ -69,6 +70,8 @@
   }
 
   function lockDown(message) {
+    attempts.cancel();
+    unlockButton.disabled = false;
     closeSocket();
     term.reset();
     showLock(message);
@@ -101,18 +104,22 @@
     socket.onclose = () => lockDown('Disconnected');
   }
 
+  function describeFailure(result) {
+    if (result.status === 'timeout') return 'Unlock timed out. Tap Unlock to try again.';
+    return `Unlock failed: ${result.error.message}`;
+  }
+
   async function unlock() {
-    if (unlocking || socket) return;
-    unlocking = true;
+    if (socket) return;
     unlockButton.disabled = true;
     lockStatus.textContent = '';
-    try {
-      connect(await Passkey.login());
-    } catch (err) {
-      showLock(`Unlock failed: ${err.message}`);
-    } finally {
-      unlocking = false;
-      unlockButton.disabled = false;
+    const result = await attempts.start((signal) => Passkey.login({ signal }));
+    if (result.status === 'stale') return;
+    unlockButton.disabled = false;
+    if (result.status === 'ok') {
+      connect(result.value);
+    } else {
+      showLock(describeFailure(result));
     }
   }
 

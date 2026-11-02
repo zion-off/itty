@@ -49,9 +49,10 @@ const Passkey = (() => {
     },
   });
 
-  const post = async (url, body) => {
+  const post = async (url, body, signal) => {
     const res = await fetch(url, {
       method: 'POST',
+      signal,
       headers: { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -59,10 +60,10 @@ const Passkey = (() => {
     return res.json();
   };
 
-  const login = async () => {
-    const { id, options } = await post('/auth/challenge');
-    const credential = await navigator.credentials.get({ publicKey: requestOptions(options.publicKey) });
-    const { ticket } = await post(`/auth/verify?id=${encodeURIComponent(id)}`, encodeAssertion(credential));
+  const login = async ({ signal } = {}) => {
+    const { id, options } = await post('/auth/challenge', undefined, signal);
+    const credential = await navigator.credentials.get({ publicKey: requestOptions(options.publicKey), signal });
+    const { ticket } = await post(`/auth/verify?id=${encodeURIComponent(id)}`, encodeAssertion(credential), signal);
     return ticket;
   };
 
