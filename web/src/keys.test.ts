@@ -32,3 +32,12 @@ test('navigation keys follow the cursor key mode for home and end only', () => {
 test('backtab is the reverse tab sequence', () => {
   assert.strictEqual(Keys.BACKTAB, '\x1b[Z');
 });
+
+test('enter is a carriage return and alt-enter prefixes it with escape', () => {
+  assert.strictEqual(Keys.ENTER, '\r');
+  assert.strictEqual(Keys.ALT_ENTER, '\x1b\r');
+});
+
+test('control j is the newline that adds a line without running the prompt', () => {
+  assert.strictEqual(Keys.controlByte('j'), '\n');
+});

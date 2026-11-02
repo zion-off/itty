@@ -13,6 +13,8 @@ const Keys = (() => {
     const ESCAPE = ESC;
     const TAB = '\t';
     const BACKTAB = `${ESC}[Z`;
+    const ENTER = '\r';
+    const ALT_ENTER = `${ESC}${ENTER}`;
     const controlByte = (ch) => {
         if (ch.length !== 1)
             return null;
@@ -32,7 +34,7 @@ const Keys = (() => {
         end: (applicationMode) => `${introducer(applicationMode)}F`,
     };
     const navigation = (name, applicationMode) => NAVIGATION[name](applicationMode);
-    return { controlByte, arrow, navigation, ESCAPE, TAB, BACKTAB };
+    return { controlByte, arrow, navigation, ESCAPE, TAB, BACKTAB, ENTER, ALT_ENTER };
 })();
 if (typeof module !== 'undefined')
     module.exports = Keys;
