@@ -1,7 +1,6 @@
 const Touch = (() => {
   const COMPAT_MOUSE_WINDOW_MS = 800;
   const CLICK_SUPPRESS_MS = 600;
-  const WHEEL_LINES = 5;
   const MAX_STEPS = 8;
 
   const create = ({ element, term, send, now = () => performance.now() }) => {
@@ -20,8 +19,7 @@ const Touch = (() => {
       };
     };
 
-    const cellHeight = () => term.element.querySelector('.xterm-screen').getBoundingClientRect().height / term.rows;
-    const wheelStepPx = () => cellHeight() * WHEEL_LINES;
+    const wheelStepPx = () => term.element.querySelector('.xterm-screen').getBoundingClientRect().height / term.rows;
 
     const emitScroll = ({ direction, steps, x, y }) => {
       const { col, row } = cellAt({ x, y });

@@ -151,7 +151,7 @@ A vertical drag is sent to tmux as mouse-wheel events at the touch position, bec
 
 The touch layer sends mouse events in the SGR format and acts only while the terminal program has asked for mouse events, so without tmux mouse mode a tap still just opens the keyboard. It ignores a second finger, caps the wheel events sent for one finger movement, and swallows the mouse events that iOS generates after a tap so that tmux does not receive each click twice. After a drag or a selection it suppresses the click that would otherwise open the keyboard.
 
-The conversion from drag distance to wheel events has a sensitivity value (24 pixels per wheel event) and the long press lasts 450 ms. Both will need tuning on a real phone.
+The touch layer sends one wheel event for each terminal row the finger moves, which is what a desktop trackpad does. A program that scrolls one line per wheel event, such as Claude Code inside tmux, then moves with the finger. tmux's own history moves 5 lines per wheel event, so it scrolls faster than the finger, as it does on the desktop. The long press lasts 450 ms.
 
 ## Logging
 
