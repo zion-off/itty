@@ -42,7 +42,7 @@ const Attempts = (() => {
       });
     };
 
-    return { start, cancel };
+    return { start, cancel, active: () => current !== null };
   };
 
   return { create };

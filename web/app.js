@@ -143,6 +143,10 @@
 
   async function unlock() {
     if (socket) return;
+    if (attempts.active()) {
+      console.info('itty: unlock skipped, an attempt is already in progress');
+      return;
+    }
     lockStatus.show('Waiting for your passkey…', 'pending');
     const result = await attempts.start(async (signal) => {
       await Focus.whenFocused({ signal });

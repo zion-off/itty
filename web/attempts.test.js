@@ -86,3 +86,18 @@ test('cancel with nothing in flight is harmless', async () => {
   attempts.cancel();
   assert.deepStrictEqual(await attempts.start(async () => 1), { status: 'ok', value: 1 });
 });
+
+test('active reports an attempt in flight until it settles or is cancelled', async () => {
+  const attempts = Attempts.create({ timeoutMs: 30000, ...fakeTimers() });
+  assert.strictEqual(attempts.active(), false);
+  const task = deferred();
+  const result = attempts.start(() => task.promise);
+  assert.strictEqual(attempts.active(), true);
+  task.resolve('ticket');
+  await result;
+  assert.strictEqual(attempts.active(), false);
+  const cancelled = attempts.start(() => deferred().promise);
+  attempts.cancel();
+  await cancelled;
+  assert.strictEqual(attempts.active(), false);
+});
