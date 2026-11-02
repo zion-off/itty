@@ -97,6 +97,8 @@ func (c Config) ACMEDir() string { return filepath.Join(c.DataDir, "acme") }
 
 func (c Config) CredentialsPath() string { return filepath.Join(c.DataDir, "credentials.json") }
 
+func (c Config) LastSessionPath() string { return filepath.Join(c.DataDir, "last-session") }
+
 func (c Config) EnrollmentPath() string { return filepath.Join(c.DataDir, "enrollment.json") }
 
 func (c Config) Validate() error {
