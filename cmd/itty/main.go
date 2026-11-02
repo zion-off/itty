@@ -22,6 +22,7 @@ var commands = map[string]command{
 	"check":      withConfig("check", check),
 	"enroll":     withConfig("enroll", enroll),
 	"renew-cert": renewCommand,
+	"service":    serviceCommand,
 	"serve":      withConfig("serve", serve),
 }
 

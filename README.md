@@ -31,17 +31,24 @@ Add the page to your home screen from the browser's share menu.
 
 ## Run it as a service
 
-`deploy/itty.service` is a systemd unit that starts itty at boot, restarts it if it crashes, and runs it as your user. Replace `@USER@` with your user name and `@DIR@` with the directory that holds `bin/itty` and `itty.toml`, then install it:
+`itty service install` writes a systemd unit that starts itty at boot, restarts it if it crashes, and runs it as your user. It fills in the path of the `itty` binary you ran, the config file you pass with `-config`, and your user name. It then enables and starts the service. The command uses `sudo` for the steps that need root, and skips it when you run it as root.
 
 ```
-sed -e "s|@USER@|$USER|g" -e "s|@DIR@|$PWD|g" deploy/itty.service | sudo tee /etc/systemd/system/itty.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now itty
+itty service install
+itty service status
+itty service restart
+itty service stop
+itty service stop -kill-session
+itty service disable
+itty service uninstall
 ```
 
-Use `systemctl status itty` to check it and `tail -f itty.log` to follow the structured log. After you rebuild the binary, run `sudo systemctl restart itty`.
+- `start`, `stop`, `restart`, `enable` and `disable` map to the matching `systemctl` commands for the `itty` service. `enable` and `disable` control whether it starts at boot.
+- `stop` leaves the tmux session running. Add `-kill-session` to end the session too.
+- `uninstall` stops and disables the service and removes the unit file.
+- After you rebuild the binary, run `itty service restart`. If you moved the binary or the config file, run `itty service install` again.
 
-The unit sets `KillMode=process`. Without it, systemd would also kill the tmux server when itty stops or restarts, because tmux starts inside the service, and that would end your session and everything running in it. The unit has no sandboxing options on purpose, because the shell that a login opens must have the same access as you do.
+The unit sets `KillMode=process`. Without it, systemd would also kill the tmux server when itty stops or restarts, because tmux starts inside the service, and that would end your session and everything running in it. The unit has no sandboxing options on purpose, because the shell that a login opens must have the same access as you do. Only systemd on Linux is supported.
 
 ## Certificate
 
@@ -77,7 +84,6 @@ The default `manual` provider stores no DNS credentials on the VM, but it needs 
 
 - Private networks only. The security audit found hardening gaps that matter once the server is reachable from the internet, such as no rate limit on `/auth/challenge`, no security headers and no HTTP read timeouts.
 - The touch layer for scrolling and selecting text on a phone is not built.
-- There is no service file. Run `itty serve` under your own process manager.
 
 ## More
 

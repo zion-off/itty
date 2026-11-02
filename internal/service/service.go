@@ -21,7 +21,10 @@ const (
 //go:embed itty.service.tmpl
 var unitTemplate string
 
-var ErrUnknownAction = errors.New("unknown service action")
+var (
+	ErrUnknownAction = errors.New("unknown service action")
+	ErrNotInstalled  = errors.New("the itty service is not installed; run: itty service install")
+)
 
 type Runner interface {
 	Run(ctx context.Context, name string, args ...string) error
@@ -136,10 +139,19 @@ func (m Manager) runStatus(ctx context.Context) error {
 	m.Log.Info("running command", "command", "systemctl", "args", args)
 	err := m.Runner.Run(ctx, "systemctl", args...)
 	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) && exitErr.ExitCode() == statusInactiveExit {
+	if !errors.As(err, &exitErr) {
+		return err
+	}
+	switch exitErr.ExitCode() {
+	case statusInactiveExit:
 		return nil
+	case statusNotFoundExit:
+		return ErrNotInstalled
 	}
 	return err
 }
 
-const statusInactiveExit = 3
+const (
+	statusInactiveExit = 3
+	statusNotFoundExit = 4
+)

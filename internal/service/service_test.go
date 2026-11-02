@@ -105,10 +105,16 @@ func TestStatusNeedsNoPrivilegesAndToleratesAnInactiveService(t *testing.T) {
 		t.Fatalf("an inactive service is a normal status result, got %v", err)
 	}
 
-	broken := exec.Command("sh", "-c", "exit 4").Run()
+	missing := exec.Command("sh", "-c", "exit 4").Run()
+	r = &recordingRunner{failOn: "status", failErr: missing}
+	if err := newManager(r, false).Do(context.Background(), "status", false); !errors.Is(err, ErrNotInstalled) {
+		t.Fatalf("a missing unit should say how to install it, got %v", err)
+	}
+
+	broken := exec.Command("sh", "-c", "exit 1").Run()
 	r = &recordingRunner{failOn: "status", failErr: broken}
-	if err := newManager(r, false).Do(context.Background(), "status", false); err == nil {
-		t.Fatal("other failures must be reported")
+	if err := newManager(r, false).Do(context.Background(), "status", false); err == nil || errors.Is(err, ErrNotInstalled) {
+		t.Fatalf("other failures must be reported as they are, got %v", err)
 	}
 }
 
