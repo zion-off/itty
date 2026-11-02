@@ -48,6 +48,7 @@
     applicationCursorMode: () => term.modes.applicationCursorKeysMode,
     keyboard,
   });
+  const touch = Touch.create({ element: terminalElement, term, send: sendText });
   const attempts = Attempts.create({ timeoutMs: UNLOCK_TIMEOUT_MS });
   const sessions = Sessions.create();
   const switcher = Switcher.create({ root: document.getElementById('switcher'), sessions, send: sendControl });
@@ -90,6 +91,7 @@
     closeSocket();
     term.reset();
     switcher.reset();
+    touch.reset();
     showLock(message, tone);
   }
 
@@ -160,6 +162,7 @@
   Press.attach(unlockButton, { scale: 0.97 });
   unlockButton.addEventListener('click', unlock);
   terminalElement.addEventListener('click', () => {
+    if (touch.ignoreClick()) return;
     if (!keyboard.isShowing()) keyboard.show();
   });
 
