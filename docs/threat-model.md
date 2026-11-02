@@ -34,7 +34,7 @@ If the server were reachable from the internet, the passkey and the pre-login co
 ## Accepted risks
 
 - A passkey that syncs through a cloud account, such as iCloud Keychain, is as safe as that account. Someone who takes over the account and passes its recovery checks could use the passkey. The private network is still required in addition.
-- The terminal session has the operator's full privileges. The design limits what the phone can start, but it does not limit what a logged-in person can do inside tmux.
+- The terminal session has the operator's full privileges. The design limits what the phone can start, but it does not limit what a logged-in person can do inside tmux. A logged-in person can also switch to any other tmux session of that user, which adds no new access, because every session runs with the same privileges.
 - Anyone who gets a shell on the VM can enroll a passkey. That person already has access to the operator's user, so enrollment does not add a new exposure.
 - The iOS app switcher can show a snapshot of the last screen. The first version does not guard against this.
 

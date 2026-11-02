@@ -1,6 +1,6 @@
 # itty design
 
-itty is a web terminal that lets one person use one fixed tmux session on a remote VM from a phone. It runs as a single Go program on the VM and serves a web app that is installed on the phone's home screen. The app requires a passkey check (for example FaceID on an iPhone) every time it comes to the foreground.
+itty is a web terminal that lets one person use their tmux sessions on a remote VM from a phone. It runs as a single Go program on the VM and serves a web app that is installed on the phone's home screen. The app requires a passkey check (for example FaceID on an iPhone) every time it comes to the foreground.
 
 Anyone can install itty on their own VM for their own use. Each install serves one person. The first version supports a VM that is reachable only over a private network such as a VPN. It does not support exposing the server to the internet. The authentication does not depend on a private network, so that support can be added later without changing the login.
 
@@ -12,7 +12,7 @@ The operator is the person who installs itty on a VM and runs it. The operator i
 
 ## Scope
 
-An install has one operator, one tmux session and any number of enrolled passkeys. The phone can only operate inside that session, because the server runs a fixed command and never starts a general shell. iOS Safari is the client that the project tests against. WebAuthn is not specific to iOS, so other browsers with passkey support should work, but they are not a goal of the first version.
+An install has one operator, one default tmux session and any number of enrolled passkeys. The phone can only operate inside a tmux session of the operator's user, because the server runs a fixed command and never starts a general shell. The operator can switch between the sessions that already exist, and the server never creates a session except the default one. iOS Safari is the client that the project tests against. WebAuthn is not specific to iOS, so other browsers with passkey support should work, but they are not a goal of the first version.
 
 itty is not an SSH server. It does not support file transfer, port forwarding, multiple users in one install or exposure of the server to the internet. The first version also leaves out copying text to the phone's clipboard and momentum scrolling, and the design does not block adding either one later.
 
@@ -102,7 +102,9 @@ There are no session cookies and no long-lived login. Every websocket needs a fr
 
 ## Terminal session
 
-For each websocket, the server starts a pty that runs `tmux new-session -A` for the configured session, which attaches to it and creates it when it does not exist, as the user that runs itty. When the websocket closes, the server ends that attach process. The tmux session itself keeps running, so the operator's work is not affected by dropped connections, and the next login attaches to the same session.
+For each websocket, the server starts a pty that runs `tmux new-session -A` for one session, which attaches to it and creates it when it does not exist, as the user that runs itty. When the websocket closes, the server ends that attach process. The tmux session itself keeps running, so the operator's work is not affected by dropped connections.
+
+The server remembers the last session that a connection attached to, in a private file in the data directory. At the start of a connection it attaches to that session if it still exists, and otherwise to the default session named in the configuration. The operator can ask to switch to another session while connected. The server accepts only the default session and the names that `tmux list-sessions` reports, passes the name to tmux as one argument and never through a shell, and replaces the attach process while the websocket stays open. A switch keeps the terminal size and saves the new session as the last one.
 
 The client sends its terminal size when it connects and whenever the size changes, and the server applies it to the pty.
 
@@ -180,4 +182,4 @@ The server never logs ticket values, challenge values or terminal input and outp
 
 ## Websocket messages
 
-Binary frames carry terminal data in both directions. Text frames carry JSON control messages. The client sends `{"type":"resize","cols":N,"rows":N}` as its first message and again whenever the size changes. The websocket URL carries the ticket in the `ticket` query parameter, and the server never logs URLs.
+Binary frames carry terminal data in both directions. Text frames carry JSON control messages. The client sends `{"type":"resize","cols":N,"rows":N}` as its first message and again whenever the size changes. The server sends `{"type":"sessions","current":"work","sessions":["itty","work"]}` after it attaches, after every switch and in reply to a list request, and it sends it before the first output of the new session. The client asks for a change with `{"type":"switch","session":"work"}` and for a fresh list with `{"type":"list"}`. The server answers a rejected request with `{"type":"error","message":"unknown session"}` and stays in the current session. The websocket URL carries the ticket in the `ticket` query parameter, and the server never logs URLs.

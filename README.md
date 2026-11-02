@@ -85,7 +85,7 @@ The default `manual` provider stores no DNS credentials on the VM, but it needs 
 |---|---|
 | `hostname` | The DNS name clients use. Requests for any other name get no response. |
 | `listen` | The address and port to listen on. Pick a port that nothing else uses. |
-| `tmux_session` | The tmux session to attach to. The server creates it if it does not exist. |
+| `tmux_session` | The default tmux session. The server creates it if it does not exist and attaches to it when no other session was used last. |
 | `data_dir` | Where itty keeps enrolled passkeys and the enrollment link. |
 | `log_file` | The structured JSON log. itty does not rotate it. |
 | `tls_cert_file`, `tls_key_file` | The certificate and key. Required unless the hostname is `localhost`. |
