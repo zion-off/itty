@@ -9,7 +9,18 @@ const Keys = (() => {
 
   const arrow = (direction, applicationMode) => `\x1b${applicationMode ? 'O' : '['}${direction}`;
 
-  return { controlByte, arrow };
+  const NAVIGATION = {
+    pageUp: () => '\x1b[5~',
+    pageDown: () => '\x1b[6~',
+    home: (applicationMode) => `\x1b${applicationMode ? 'O' : '['}H`,
+    end: (applicationMode) => `\x1b${applicationMode ? 'O' : '['}F`,
+  };
+
+  const navigation = (name, applicationMode) => NAVIGATION[name](applicationMode);
+
+  const BACKTAB = '\x1b[Z';
+
+  return { controlByte, arrow, navigation, BACKTAB };
 })();
 
 if (typeof module !== 'undefined') module.exports = Keys;
