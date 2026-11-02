@@ -71,7 +71,6 @@
 
   function lockDown(message) {
     attempts.cancel();
-    unlockButton.disabled = false;
     closeSocket();
     term.reset();
     showLock(message);
@@ -111,11 +110,9 @@
 
   async function unlock() {
     if (socket) return;
-    unlockButton.disabled = true;
     lockStatus.textContent = '';
     const result = await attempts.start((signal) => Passkey.login({ signal }));
     if (result.status === 'stale') return;
-    unlockButton.disabled = false;
     if (result.status === 'ok') {
       connect(result.value);
     } else {
