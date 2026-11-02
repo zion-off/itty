@@ -25,7 +25,12 @@
       <svg class="session-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
     </button>
     <div class="session-scrim" hidden></div>
-    <div id="session-menu" class="session-menu" role="menu" aria-label="tmux sessions" inert></div>
+    <div id="session-menu" class="session-menu" role="menu" aria-label="tmux sessions" inert>
+      <div class="session-pages">
+        <div class="session-page" data-page="sessions"></div>
+        <div class="session-page" data-page="windows" inert></div>
+      </div>
+    </div>
   </div>
   <div id="terminal" aria-label="Terminal"></div>
   <div id="keybar" role="toolbar" aria-label="Terminal keys"></div>

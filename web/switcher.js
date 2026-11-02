@@ -18,8 +18,21 @@ const Switcher = (() => {
     const pill = root.querySelector('.session-pill');
     const menu = root.querySelector('.session-menu');
     const scrim = root.querySelector('.session-scrim');
+    const pages = root.querySelector('.session-pages');
+    const sessionsPage = pages.querySelector('[data-page="sessions"]');
+    const windowsPage = pages.querySelector('[data-page="windows"]');
     const status = StatusLine.create(pill);
     const presence = Presence.create({ element: menu, visible: false });
+    const depth = Spring.create({
+      value: 0,
+      ...Spring.presets.presence,
+      onUpdate: (value) => pages.style.setProperty('--depth', value),
+    });
+    const height = Spring.create({
+      value: 0,
+      ...Spring.presets.presence,
+      onUpdate: (value) => pages.style.setProperty('--pages-height', `${value}px`),
+    });
     let open = false;
     let drilled = null;
     let errorTimer = null;
@@ -31,15 +44,36 @@ const Switcher = (() => {
       pill.setAttribute('aria-label', current ? `Session ${current}, switch session` : 'Switch session');
     };
 
+    const activePage = () => (drilled === null ? sessionsPage : windowsPage);
+
+    const fitHeight = ({ animate }) => {
+      const target = activePage().offsetHeight;
+      if (animate) height.to(target);
+      else height.set(target);
+    };
+
+    const showPage = ({ animate }) => {
+      sessionsPage.inert = drilled !== null;
+      windowsPage.inert = drilled === null;
+      if (animate) depth.to(drilled === null ? 0 : 1);
+      else depth.set(drilled === null ? 0 : 1);
+      fitHeight({ animate });
+    };
+
     const setOpen = (next) => {
       if (open === next) return;
       open = next;
-      if (!open) drilled = null;
       pill.setAttribute('aria-expanded', String(open));
       menu.inert = !open;
       scrim.hidden = !open;
-      if (open) presence.show();
-      else presence.hide();
+      if (open) {
+        drilled = null;
+        renderSessions();
+        showPage({ animate: false });
+        presence.show();
+      } else {
+        presence.hide();
+      }
     };
 
     const choose = (name) => {
@@ -94,7 +128,7 @@ const Switcher = (() => {
     const renderSessions = () => {
       const { current, sessions: names } = sessions.state();
       menu.setAttribute('aria-label', 'tmux sessions');
-      menu.replaceChildren(...names.map((name) => sessionRow(name, current)));
+      sessionsPage.replaceChildren(...names.map((name) => sessionRow(name, current)));
     };
 
     const renderWindows = () => {
@@ -104,21 +138,21 @@ const Switcher = (() => {
       const windows = sessions.windowsOf(drilled);
       const rows = windows === null ? [label('session-empty', 'Loading…')] : windows.map((win) => windowRow(drilled, win));
       menu.setAttribute('aria-label', `tmux windows in ${drilled}`);
-      menu.replaceChildren(back, ...rows);
+      windowsPage.replaceChildren(back, ...rows);
     };
-
-    const render = () => (drilled === null ? renderSessions() : renderWindows());
 
     const openWindows = (name) => {
       drilled = name;
       const message = sessions.windowsMessage(name);
       if (message) send(message);
-      render();
+      renderWindows();
+      showPage({ animate: true });
     };
 
     const closeWindows = () => {
       drilled = null;
-      render();
+      menu.setAttribute('aria-label', 'tmux sessions');
+      showPage({ animate: true });
     };
 
     const chooseWindow = (session, id) => {
@@ -138,10 +172,7 @@ const Switcher = (() => {
     };
 
     const toggle = () => {
-      if (!open) {
-        drilled = null;
-        send(sessions.listMessage());
-      }
+      if (!open) send(sessions.listMessage());
       setOpen(!open);
     };
 
@@ -167,12 +198,16 @@ const Switcher = (() => {
           return;
         }
         if (update.type === 'windows') {
-          if (drilled === update.session) renderWindows();
+          if (drilled === update.session) {
+            renderWindows();
+            fitHeight({ animate: true });
+          }
           return;
         }
         clearTimeout(errorTimer);
-        if (drilled !== null && !sessions.state().sessions.includes(drilled)) drilled = null;
-        render();
+        renderSessions();
+        if (drilled !== null && !sessions.state().sessions.includes(drilled)) closeWindows();
+        else fitHeight({ animate: open });
         showLabel();
         console.info('itty: session', sessions.state().current);
       },
@@ -181,7 +216,8 @@ const Switcher = (() => {
         sessions.forget();
         setOpen(false);
         drilled = null;
-        menu.replaceChildren();
+        sessionsPage.replaceChildren();
+        windowsPage.replaceChildren();
         showLabel();
       },
     };
