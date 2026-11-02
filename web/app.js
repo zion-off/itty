@@ -154,9 +154,12 @@
   function fitToViewport() {
     const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     document.documentElement.style.setProperty('--app-height', `${height}px`);
-    fit.fit();
     keyboard.refresh();
   }
+  new ResizeObserver(() => {
+    fit.fit();
+    console.info('itty: terminal fitted', term.cols, 'x', term.rows);
+  }).observe(terminalElement);
   window.addEventListener('resize', fitToViewport);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fitToViewport);
   Press.attach(unlockButton, { scale: 0.97 });
