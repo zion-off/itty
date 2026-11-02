@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -120,6 +121,10 @@ func (c *connection) control(ctx context.Context, data []byte) {
 		c.sendWindows(ctx, msg.Session)
 	case "select":
 		c.selectWindow(ctx, msg.Session, msg.Window)
+	case "new_window":
+		c.newWindow(ctx, msg.Session)
+	case "close_window":
+		c.closeWindow(ctx, msg.Session, msg.Window)
 	default:
 		c.log.Debug("ignoring unknown control message", "type", msg.Type)
 	}
@@ -183,6 +188,43 @@ func (c *connection) selectWindow(ctx context.Context, session, windowID string)
 		return
 	}
 	c.switchTo(ctx, session)
+}
+
+func (c *connection) newWindow(ctx context.Context, session string) {
+	if !c.sessionKnown(ctx, session) {
+		c.log.Warn("window creation rejected", "reason", "unknown session", "requested", session)
+		c.sendError("unknown session")
+		return
+	}
+	if err := c.srv.Windows.NewWindow(ctx, session); err != nil {
+		c.log.Warn("window creation failed", "session", session, "error", err)
+		c.sendError("could not create window")
+		return
+	}
+	if session == c.activeName() {
+		c.sendWindows(ctx, session)
+		return
+	}
+	c.switchTo(ctx, session)
+}
+
+func (c *connection) closeWindow(ctx context.Context, session, windowID string) {
+	if !c.sessionKnown(ctx, session) {
+		c.log.Warn("window close rejected", "reason", "unknown session", "requested", session)
+		c.sendError("unknown session")
+		return
+	}
+	err := c.srv.Windows.CloseWindow(ctx, session, windowID)
+	switch {
+	case errors.Is(err, terminal.ErrLastWindow):
+		c.log.Warn("window close rejected", "reason", "last window", "session", session, "window", windowID)
+		c.sendError("cannot close the last window")
+	case err != nil:
+		c.log.Warn("window close failed", "session", session, "window", windowID, "error", err)
+		c.sendError("could not close window")
+	default:
+		c.sendWindows(ctx, session)
+	}
 }
 
 func (c *connection) input(data []byte) {

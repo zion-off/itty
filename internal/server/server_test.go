@@ -605,6 +605,8 @@ type fakeNavigator struct {
 	mu       sync.Mutex
 	windows  map[string][]terminal.Window
 	selected []string
+	created  []string
+	closed   []string
 }
 
 func (f *fakeNavigator) Windows(_ context.Context, session string) ([]terminal.Window, error) {
@@ -623,6 +625,23 @@ func (f *fakeNavigator) SelectWindow(_ context.Context, session, id string) erro
 		}
 	}
 	return terminal.ErrUnknownWindow
+}
+
+func (f *fakeNavigator) NewWindow(_ context.Context, session string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.created = append(f.created, session)
+	return nil
+}
+
+func (f *fakeNavigator) CloseWindow(_ context.Context, session, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.windows[session]) < 2 {
+		return terminal.ErrLastWindow
+	}
+	f.closed = append(f.closed, session+"/"+id)
+	return nil
 }
 
 func (f *fakeNavigator) picked() []string {
@@ -697,4 +716,67 @@ func TestSelectingAnUnknownWindowIsRejectedAndKeepsTheSession(t *testing.T) {
 		t.Fatalf("msg = %v", msg)
 	}
 	noStart(t, e.launch)
+}
+
+func TestNewWindowInTheCurrentSessionKeepsTheTerminal(t *testing.T) {
+	e, nav := withNavigator(t, map[string][]terminal.Window{"itty": {{ID: "@1", Active: true}}})
+	conn, _, _ := connect(t, e)
+	_ = conn.WriteJSON(map[string]any{"type": "new_window", "session": "itty"})
+	if msg := readControl(t, conn); msg["type"] != "windows" {
+		t.Fatalf("msg = %v", msg)
+	}
+	noStart(t, e.launch)
+	if len(nav.created) != 1 || nav.created[0] != "itty" {
+		t.Fatalf("created = %v", nav.created)
+	}
+}
+
+func TestNewWindowInAnotherSessionSwitchesToIt(t *testing.T) {
+	e, nav := withNavigator(t, map[string][]terminal.Window{"work": {{ID: "@7"}}})
+	e.lister.set("itty", "work")
+	conn, _, _ := connect(t, e)
+	_ = conn.WriteJSON(map[string]any{"type": "new_window", "session": "work"})
+	if got := waitStarted(t, e.launch); got.name != "work" {
+		t.Fatalf("started %q", got.name)
+	}
+	if len(nav.created) != 1 || nav.created[0] != "work" {
+		t.Fatalf("created = %v", nav.created)
+	}
+}
+
+func TestNewWindowInAnUnknownSessionIsRejected(t *testing.T) {
+	e, nav := withNavigator(t, nil)
+	conn, _, _ := connect(t, e)
+	_ = conn.WriteJSON(map[string]any{"type": "new_window", "session": "-t evil"})
+	if msg := readControl(t, conn); msg["type"] != "error" {
+		t.Fatalf("msg = %v", msg)
+	}
+	if len(nav.created) != 0 {
+		t.Fatalf("created = %v", nav.created)
+	}
+}
+
+func TestClosingAWindowReturnsTheRefreshedList(t *testing.T) {
+	e, nav := withNavigator(t, map[string][]terminal.Window{"itty": {{ID: "@1"}, {ID: "@2"}}})
+	conn, _, _ := connect(t, e)
+	_ = conn.WriteJSON(map[string]any{"type": "close_window", "session": "itty", "window": "@2"})
+	if msg := readControl(t, conn); msg["type"] != "windows" {
+		t.Fatalf("msg = %v", msg)
+	}
+	if len(nav.closed) != 1 || nav.closed[0] != "itty/@2" {
+		t.Fatalf("closed = %v", nav.closed)
+	}
+}
+
+func TestClosingTheLastWindowIsRejected(t *testing.T) {
+	e, nav := withNavigator(t, map[string][]terminal.Window{"itty": {{ID: "@1"}}})
+	conn, _, _ := connect(t, e)
+	_ = conn.WriteJSON(map[string]any{"type": "close_window", "session": "itty", "window": "@1"})
+	msg := readControl(t, conn)
+	if msg["type"] != "error" || msg["message"] != "cannot close the last window" {
+		t.Fatalf("msg = %v", msg)
+	}
+	if len(nav.closed) != 0 {
+		t.Fatalf("closed = %v", nav.closed)
+	}
 }

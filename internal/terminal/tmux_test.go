@@ -163,6 +163,34 @@ func TestWindowsListsAndSelectsWindowsOfOneSession(t *testing.T) {
 	}
 }
 
+func TestNewAndCloseWindowChangeTheWindowsOfOneSession(t *testing.T) {
+	l, name := newTestLauncher(t)
+	if out, err := exec.Command("tmux", "new-session", "-d", "-s", name, "sleep 60").CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	ctx := context.Background()
+	if err := l.NewWindow(ctx, name); err != nil {
+		t.Fatal(err)
+	}
+	windows, _ := l.Windows(ctx, name)
+	if len(windows) != 2 || !windows[1].Active {
+		t.Fatalf("after new = %+v", windows)
+	}
+	if err := l.CloseWindow(ctx, name, "@999999"); !errors.Is(err, ErrUnknownWindow) {
+		t.Fatalf("err = %v", err)
+	}
+	if err := l.CloseWindow(ctx, name, windows[1].ID); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := l.Windows(ctx, name)
+	if len(after) != 1 || after[0].ID != windows[0].ID {
+		t.Fatalf("after close = %+v", after)
+	}
+	if err := l.CloseWindow(ctx, name, after[0].ID); !errors.Is(err, ErrLastWindow) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestParseWindowsSkipsMalformedLines(t *testing.T) {
 	got := parseWindows("@1|||0|||1|||a|b\nbroken\n@2|||x|||0|||bad index\n")
 	if len(got) != 1 || got[0].Name != "a|b" || !got[0].Active {

@@ -32,9 +32,14 @@ type Window struct {
 	Active bool   `json:"active"`
 }
 
-var ErrUnknownWindow = errors.New("unknown window")
+var (
+	ErrUnknownWindow = errors.New("unknown window")
+	ErrLastWindow    = errors.New("cannot close the last window of a session")
+)
 
 type Navigator interface {
 	Windows(ctx context.Context, session string) ([]Window, error)
 	SelectWindow(ctx context.Context, session, windowID string) error
+	NewWindow(ctx context.Context, session string) error
+	CloseWindow(ctx context.Context, session, windowID string) error
 }
