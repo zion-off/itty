@@ -13,6 +13,7 @@ const MODULES: Readonly<Record<string, string>> = {
   Keys: 'keys.js',
   Momentum: 'momentum.js',
   Mouse: 'mouse.js',
+  PillLayout: 'pilllayout.js',
   Repeat: 'repeat.js',
   Reposition: 'reposition.js',
   Sessions: 'sessions.js',
