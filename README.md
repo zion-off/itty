@@ -104,7 +104,11 @@ The default `manual` provider stores no DNS credentials on the VM, but it needs 
 ## Known limits
 
 - Private networks only. The security audit found hardening gaps that matter once the server is reachable from the internet, such as no rate limit on `/auth/challenge`, no security headers and no HTTP read timeouts.
-- Touch scrolling and selection work only while the program in the terminal has asked for mouse events, as tmux does with `set -g mouse on`. The drag sensitivity and the long-press delay are constants in `web/gesture.js` and may need tuning on your phone.
+- Touch scrolling and selection work only while the program in the terminal has asked for mouse events, as tmux does with `set -g mouse on`. The drag sensitivity and the long-press delay are constants in `web/src/gesture.ts` and may need tuning on your phone.
+
+## Develop the web client
+
+The browser client is written in TypeScript in `web/src`, and `tsc` compiles each file to a plain script next to it in `web`. The compiled `web/*.js` files are committed, so `go build` needs no Node and embeds exactly what is in the repository. Do not edit those `.js` files by hand. Install the tooling once with `pnpm install`, which needs Node 22 or later and pnpm 9. Then run `pnpm build` to recompile, `pnpm typecheck` to type-check, `pnpm lint` to enforce the no-`any` and no-type-assertion rules, and `pnpm test` to compile and run the unit tests. Run `pnpm check` before you commit, because it also runs `scripts/check-web-build.sh`, which fails when a committed `web/*.js` file differs from what `pnpm build` produces.
 
 ## More
 
