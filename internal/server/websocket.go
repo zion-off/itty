@@ -1,10 +1,8 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -21,9 +19,10 @@ const (
 )
 
 type clientMessage struct {
-	Type string `json:"type"`
-	Cols uint16 `json:"cols"`
-	Rows uint16 `json:"rows"`
+	Type    string `json:"type"`
+	Cols    uint16 `json:"cols"`
+	Rows    uint16 `json:"rows"`
+	Session string `json:"session"`
 }
 
 func (s *Server) originAllowed(r *http.Request) bool {
@@ -52,51 +51,36 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	log.Info("ticket redeemed")
 
 	up := websocket.Upgrader{CheckOrigin: s.originAllowed}
-	conn, err := up.Upgrade(w, r, nil)
+	ws, err := up.Upgrade(w, r, nil)
 	if err != nil {
 		log.Warn("websocket upgrade failed", "error", err)
 		return
 	}
-	defer conn.Close()
+	defer ws.Close()
 
 	started := time.Now()
 	log.Info("websocket opened")
 	defer func() { log.Info("websocket closed", "duration", time.Since(started).String()) }()
 
-	size, err := readInitialSize(conn)
+	size, err := readInitialSize(ws)
 	if err != nil {
 		log.Warn("initial resize not received", "error", err)
 		return
 	}
 
-	session, err := s.Launcher.Start(r.Context(), s.DefaultSession, size)
-	if err != nil {
+	c := newConnection(s, ws, size, log)
+	defer c.close()
+	if err := c.attachInitial(r.Context()); err != nil {
 		log.Error("terminal start failed", "error", err)
 		return
 	}
-	defer func() {
-		_ = session.Close()
-		_, _ = session.Wait()
-	}()
-
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
-
-	go func() {
-		defer cancel()
-		pumpOutput(conn, session, log)
-	}()
-	go func() {
-		defer cancel()
-		pumpInput(conn, session, log)
-	}()
-	<-ctx.Done()
+	c.readLoop(r.Context())
 }
 
-func readInitialSize(conn *websocket.Conn) (terminal.Size, error) {
-	_ = conn.SetReadDeadline(time.Now().Add(initialResizeTimeout))
-	defer func() { _ = conn.SetReadDeadline(time.Time{}) }()
-	msgType, data, err := conn.ReadMessage()
+func readInitialSize(ws *websocket.Conn) (terminal.Size, error) {
+	_ = ws.SetReadDeadline(time.Now().Add(initialResizeTimeout))
+	defer func() { _ = ws.SetReadDeadline(time.Time{}) }()
+	msgType, data, err := ws.ReadMessage()
 	if err != nil {
 		return terminal.Size{}, err
 	}
@@ -115,47 +99,4 @@ func parseResize(data []byte) (terminal.Size, error) {
 		return terminal.Size{}, errors.New("invalid resize message")
 	}
 	return terminal.Size{Cols: msg.Cols, Rows: msg.Rows}, nil
-}
-
-func pumpOutput(conn *websocket.Conn, session terminal.Session, log *slog.Logger) {
-	buf := make([]byte, readChunkSize)
-	for {
-		n, err := session.Read(buf)
-		if n > 0 {
-			if werr := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); werr != nil {
-				log.Debug("websocket write failed", "error", werr)
-				return
-			}
-		}
-		if err != nil {
-			log.Debug("terminal read ended", "error", err)
-			return
-		}
-	}
-}
-
-func pumpInput(conn *websocket.Conn, session terminal.Session, log *slog.Logger) {
-	for {
-		msgType, data, err := conn.ReadMessage()
-		if err != nil {
-			log.Debug("websocket read ended", "error", err)
-			return
-		}
-		switch msgType {
-		case websocket.BinaryMessage:
-			if _, err := session.Write(data); err != nil {
-				log.Debug("terminal write failed", "error", err)
-				return
-			}
-		case websocket.TextMessage:
-			size, err := parseResize(data)
-			if err != nil {
-				log.Debug("ignoring malformed control message", "error", err)
-				continue
-			}
-			if err := session.Resize(size); err != nil {
-				log.Debug("resize failed", "error", err)
-			}
-		}
-	}
 }

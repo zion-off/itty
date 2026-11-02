@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -61,14 +62,63 @@ func (f *fakeSession) Close() error {
 
 func (f *fakeSession) Wait() (int, error) { <-f.closed; return 0, nil }
 
-type fakeLauncher struct {
+type startedSession struct {
+	name    string
+	size    terminal.Size
 	session *fakeSession
-	started chan terminal.Size
 }
 
-func (l *fakeLauncher) Start(_ context.Context, _ string, size terminal.Size) (terminal.Session, error) {
-	l.started <- size
-	return l.session, nil
+type fakeLauncher struct {
+	started chan startedSession
+}
+
+func (l *fakeLauncher) Start(_ context.Context, name string, size terminal.Size) (terminal.Session, error) {
+	s := newFakeSession()
+	l.started <- startedSession{name: name, size: size, session: s}
+	return s, nil
+}
+
+type fakeLister struct {
+	mu    sync.Mutex
+	names []string
+}
+
+func (f *fakeLister) List(context.Context) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.names...), nil
+}
+
+func (f *fakeLister) set(names ...string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.names = names
+}
+
+type fakeStore struct {
+	mu    sync.Mutex
+	value string
+	saved []string
+}
+
+func (f *fakeStore) Load() (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.value, nil
+}
+
+func (f *fakeStore) Save(name string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.value = name
+	f.saved = append(f.saved, name)
+	return nil
+}
+
+func (f *fakeStore) last() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.value
 }
 
 type fakeAuth struct {
@@ -107,19 +157,23 @@ type env struct {
 	ts      *httptest.Server
 	base    string
 	launch  *fakeLauncher
+	lister  *fakeLister
+	store   *fakeStore
 	auth    *fakeAuth
 	limiter *ratelimit.FailureLimiter
 }
 
 func setup(t *testing.T) env {
 	t.Helper()
-	l := &fakeLauncher{session: newFakeSession(), started: make(chan terminal.Size, 1)}
+	l := &fakeLauncher{started: make(chan startedSession, 8)}
+	lister := &fakeLister{names: []string{"itty"}}
+	store := &fakeStore{}
 	a := &fakeAuth{tickets: map[string]bool{"good": true}}
 	lim := ratelimit.NewFailureLimiter(clock.System{}, 3, time.Minute)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	ts := httptest.NewServer(New(Deps{Hostname: "localhost", Launcher: l, DefaultSession: "itty", Auth: a, Limiter: lim, Log: log}))
+	ts := httptest.NewServer(New(Deps{Hostname: "localhost", Launcher: l, Sessions: lister, LastSession: store, DefaultSession: "itty", Auth: a, Limiter: lim, Log: log}))
 	t.Cleanup(ts.Close)
-	return env{ts: ts, base: strings.Replace(ts.URL, "127.0.0.1", "localhost", 1), launch: l, auth: a, limiter: lim}
+	return env{ts: ts, base: strings.Replace(ts.URL, "127.0.0.1", "localhost", 1), launch: l, lister: lister, store: store, auth: a, limiter: lim}
 }
 
 func dial(ts *httptest.Server, origin, ticket string) (*websocket.Conn, *http.Response, error) {
@@ -130,68 +184,265 @@ func dial(ts *httptest.Server, origin, ticket string) (*websocket.Conn, *http.Re
 	return websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(strings.Replace(ts.URL, "127.0.0.1", "localhost", 1), "http")+"/ws?ticket="+ticket, h)
 }
 
-func TestWebsocketBridgesTerminal(t *testing.T) {
-	e := setup(t)
-	l := e.launch
-	conn, _, err := dial(e.ts, "http://localhost:8080", "good")
+func waitStarted(t *testing.T, l *fakeLauncher) startedSession {
+	t.Helper()
+	select {
+	case s := <-l.started:
+		return s
+	case <-time.After(2 * time.Second):
+		t.Fatal("no terminal session was started")
+		return startedSession{}
+	}
+}
+
+func noStart(t *testing.T, l *fakeLauncher) {
+	t.Helper()
+	select {
+	case s := <-l.started:
+		t.Fatalf("unexpected terminal session %q was started", s.name)
+	case <-time.After(150 * time.Millisecond):
+	}
+}
+
+func readControl(t *testing.T, conn *websocket.Conn) map[string]any {
+	t.Helper()
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	typ, data, err := conn.ReadMessage()
+	if err != nil || typ != websocket.TextMessage {
+		t.Fatalf("expected a control message, got type=%d data=%q err=%v", typ, data, err)
+	}
+	var msg map[string]any
+	if err := json.Unmarshal(data, &msg); err != nil {
+		t.Fatal(err)
+	}
+	return msg
+}
+
+func readBinary(t *testing.T, conn *websocket.Conn) string {
+	t.Helper()
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	typ, data, err := conn.ReadMessage()
+	if err != nil || typ != websocket.BinaryMessage {
+		t.Fatalf("expected terminal output, got type=%d data=%q err=%v", typ, data, err)
+	}
+	return string(data)
+}
+
+func connect(t *testing.T, e env) (*websocket.Conn, startedSession, map[string]any) {
+	t.Helper()
+	conn, _, err := dial(e.ts, "http://localhost", "good")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
-
+	t.Cleanup(func() { conn.Close() })
 	if err := conn.WriteJSON(map[string]any{"type": "resize", "cols": 90, "rows": 30}); err != nil {
 		t.Fatal(err)
 	}
-	if got := <-l.started; got != (terminal.Size{Cols: 90, Rows: 30}) {
-		t.Fatalf("started with %+v", got)
-	}
+	started := waitStarted(t, e.launch)
+	return conn, started, readControl(t, conn)
+}
 
-	if err := conn.WriteMessage(websocket.BinaryMessage, []byte("ls\r")); err != nil {
-		t.Fatal(err)
+func sessionNames(msg map[string]any) []string {
+	var names []string
+	for _, n := range msg["sessions"].([]any) {
+		names = append(names, n.(string))
 	}
-	if got := string(<-l.session.fromClient); got != "ls\r" {
-		t.Fatalf("terminal received %q", got)
-	}
+	return names
+}
 
-	l.session.toClient <- []byte("output")
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	typ, data, err := conn.ReadMessage()
-	if err != nil || typ != websocket.BinaryMessage || string(data) != "output" {
-		t.Fatalf("got %d %q %v", typ, data, err)
-	}
-
-	if err := conn.WriteJSON(map[string]any{"type": "resize", "cols": 100, "rows": 40}); err != nil {
-		t.Fatal(err)
-	}
+func waitFor(t *testing.T, what string, cond func() bool) {
+	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
-	for {
-		l.session.mu.Lock()
-		n := len(l.session.sizes)
-		l.session.mu.Unlock()
-		if n == 1 {
-			break
-		}
+	for !cond() {
 		if time.Now().After(deadline) {
-			t.Fatal("resize never applied")
+			t.Fatalf("timed out waiting for %s", what)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
 }
 
-func TestClosingWebsocketEndsSession(t *testing.T) {
+func TestWebsocketBridgesTerminal(t *testing.T) {
 	e := setup(t)
-	l := e.launch
-	conn, _, err := dial(e.ts, "http://localhost", "good")
-	if err != nil {
+	conn, started, hello := connect(t, e)
+	if started.size != (terminal.Size{Cols: 90, Rows: 30}) || started.name != "itty" {
+		t.Fatalf("started %+v", started)
+	}
+	if hello["type"] != "sessions" || hello["current"] != "itty" {
+		t.Fatalf("hello = %v", hello)
+	}
+
+	if err := conn.WriteMessage(websocket.BinaryMessage, []byte("ls\r")); err != nil {
 		t.Fatal(err)
 	}
-	_ = conn.WriteJSON(map[string]any{"type": "resize", "cols": 80, "rows": 24})
-	<-l.started
+	if got := string(<-started.session.fromClient); got != "ls\r" {
+		t.Fatalf("terminal received %q", got)
+	}
+
+	started.session.toClient <- []byte("output")
+	if got := readBinary(t, conn); got != "output" {
+		t.Fatalf("got %q", got)
+	}
+
+	if err := conn.WriteJSON(map[string]any{"type": "resize", "cols": 100, "rows": 40}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "resize", func() bool {
+		started.session.mu.Lock()
+		defer started.session.mu.Unlock()
+		return len(started.session.sizes) == 1
+	})
+}
+
+func TestClosingWebsocketEndsSession(t *testing.T) {
+	e := setup(t)
+	conn, started, _ := connect(t, e)
 	conn.Close()
 	select {
-	case <-l.session.closed:
+	case <-started.session.closed:
 	case <-time.After(2 * time.Second):
 		t.Fatal("session was not closed after websocket closed")
+	}
+}
+
+func TestTerminalExitClosesTheWebsocket(t *testing.T) {
+	e := setup(t)
+	conn, started, _ := connect(t, e)
+	_ = started.session.Close()
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, _, err := conn.ReadMessage(); err == nil {
+		t.Fatal("expected the websocket to close when the terminal process ends")
+	}
+}
+
+func TestAttachesTheLastUsedSessionWhenItStillExists(t *testing.T) {
+	e := setup(t)
+	e.lister.set("itty", "work")
+	e.store.value = "work"
+	_, started, hello := connect(t, e)
+	if started.name != "work" || hello["current"] != "work" {
+		t.Fatalf("started %q, hello %v", started.name, hello)
+	}
+	if got := sessionNames(hello); len(got) != 2 || got[0] != "itty" || got[1] != "work" {
+		t.Fatalf("sessions = %v", got)
+	}
+}
+
+func TestFallsBackToTheDefaultSessionWhenTheLastOneIsGone(t *testing.T) {
+	e := setup(t)
+	e.lister.set("itty", "work")
+	e.store.value = "deleted"
+	if _, started, _ := connect(t, e); started.name != "itty" {
+		t.Fatalf("started %q, want the default session", started.name)
+	}
+}
+
+func TestRemembersTheSessionItAttached(t *testing.T) {
+	e := setup(t)
+	connect(t, e)
+	waitFor(t, "last session to be saved", func() bool { return e.store.last() == "itty" })
+}
+
+func TestSwitchMovesToAnotherSessionAndKeepsTheSize(t *testing.T) {
+	e := setup(t)
+	e.lister.set("itty", "work")
+	conn, first, _ := connect(t, e)
+	if err := conn.WriteJSON(map[string]any{"type": "resize", "cols": 100, "rows": 40}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "resize", func() bool {
+		first.session.mu.Lock()
+		defer first.session.mu.Unlock()
+		return len(first.session.sizes) == 1
+	})
+
+	if err := conn.WriteJSON(map[string]any{"type": "switch", "session": "work"}); err != nil {
+		t.Fatal(err)
+	}
+	second := waitStarted(t, e.launch)
+	if second.name != "work" || second.size != (terminal.Size{Cols: 100, Rows: 40}) {
+		t.Fatalf("second session %+v", second)
+	}
+	if msg := readControl(t, conn); msg["type"] != "sessions" || msg["current"] != "work" {
+		t.Fatalf("message after switch = %v", msg)
+	}
+	select {
+	case <-first.session.closed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the previous session was not closed")
+	}
+	waitFor(t, "last session to be saved", func() bool { return e.store.last() == "work" })
+
+	second.session.toClient <- []byte("from work")
+	if got := readBinary(t, conn); got != "from work" {
+		t.Fatalf("got %q", got)
+	}
+	if err := conn.WriteMessage(websocket.BinaryMessage, []byte("x")); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(<-second.session.fromClient); got != "x" {
+		t.Fatalf("input went to the wrong session: %q", got)
+	}
+}
+
+func TestSwitchToAnUnknownSessionIsRejected(t *testing.T) {
+	e := setup(t)
+	conn, first, _ := connect(t, e)
+	for _, name := range []string{"nope", "", "-t evil", "itty:0"} {
+		if err := conn.WriteJSON(map[string]any{"type": "switch", "session": name}); err != nil {
+			t.Fatal(err)
+		}
+		if msg := readControl(t, conn); msg["type"] != "error" {
+			t.Fatalf("session %q: message = %v", name, msg)
+		}
+	}
+	noStart(t, e.launch)
+	select {
+	case <-first.session.closed:
+		t.Fatal("a rejected switch must leave the current session running")
+	default:
+	}
+}
+
+func TestSwitchAcceptsTheDefaultSessionEvenWhenItIsNotRunning(t *testing.T) {
+	e := setup(t)
+	e.lister.set("work")
+	e.store.value = "work"
+	conn, started, _ := connect(t, e)
+	if started.name != "work" {
+		t.Fatalf("started %q", started.name)
+	}
+	if err := conn.WriteJSON(map[string]any{"type": "switch", "session": "itty"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := waitStarted(t, e.launch); got.name != "itty" {
+		t.Fatalf("started %q", got.name)
+	}
+}
+
+func TestListReturnsTheCurrentSessions(t *testing.T) {
+	e := setup(t)
+	conn, _, _ := connect(t, e)
+	e.lister.set("itty", "work", "zeta")
+	if err := conn.WriteJSON(map[string]any{"type": "list"}); err != nil {
+		t.Fatal(err)
+	}
+	msg := readControl(t, conn)
+	if got := sessionNames(msg); len(got) != 3 || got[2] != "zeta" || msg["current"] != "itty" {
+		t.Fatalf("msg = %v", msg)
+	}
+}
+
+func TestSwitchingKeepsTheConnectionOpenAfterTheOldSessionEnds(t *testing.T) {
+	e := setup(t)
+	e.lister.set("itty", "work")
+	conn, _, _ := connect(t, e)
+	_ = conn.WriteJSON(map[string]any{"type": "switch", "session": "work"})
+	second := waitStarted(t, e.launch)
+	readControl(t, conn)
+	time.Sleep(100 * time.Millisecond)
+	second.session.toClient <- []byte("still here")
+	if got := readBinary(t, conn); got != "still here" {
+		t.Fatalf("got %q", got)
 	}
 }
 
@@ -203,11 +454,7 @@ func TestWebsocketRejectsForeignOrigin(t *testing.T) {
 			t.Fatalf("origin %q: expected 403, got err=%v resp=%v", origin, err, resp)
 		}
 	}
-	select {
-	case <-l.started:
-		t.Fatal("terminal started for a rejected origin")
-	default:
-	}
+	noStart(t, l)
 }
 
 func TestWebsocketRejectsBadTicketAndConsumesGoodOne(t *testing.T) {

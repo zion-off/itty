@@ -21,6 +21,11 @@ type Authenticator interface {
 	FinishEnrollment(challengeID string, r *http.Request) error
 }
 
+type LastSessionStore interface {
+	Load() (string, error)
+	Save(name string) error
+}
+
 type CertStatus interface {
 	DaysRemaining() (int, error)
 }
@@ -28,6 +33,8 @@ type CertStatus interface {
 type Deps struct {
 	Hostname       string
 	Launcher       terminal.Launcher
+	Sessions       terminal.Lister
+	LastSession    LastSessionStore
 	DefaultSession string
 	Auth           Authenticator
 	Limiter        ratelimit.Limiter
@@ -41,6 +48,12 @@ type Server struct {
 }
 
 func New(d Deps) http.Handler {
+	if d.Sessions == nil {
+		d.Sessions = onlySession(d.DefaultSession)
+	}
+	if d.LastSession == nil {
+		d.LastSession = forgetfulStore{}
+	}
 	s := &Server{Deps: d, assets: newAssets(web.Files())}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/challenge", s.handleChallenge)
