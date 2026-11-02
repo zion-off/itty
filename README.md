@@ -31,13 +31,16 @@ Add the page to your home screen from the browser's share menu.
 
 ## Certificate
 
-itty reads the certificate and key from files and reloads them when they change, so renewing needs no restart. `itty renew-cert` is not built yet. Until it is, get a certificate by hand with any ACME client that supports the DNS-01 challenge. For example, with certbot:
+itty reads the certificate and key from files and reloads them when they change, so renewing needs no restart. `itty renew-cert` gets and renews the certificate with a Let's Encrypt DNS-01 challenge.
 
-```
-certbot certonly --manual --preferred-challenges dns -d itty.example.com
-```
+1. Set `acme_email` in `itty.toml`, or pass `-acme-email` to `itty init`.
+2. Run `itty renew-cert -accept-tos`. The `-accept-tos` flag accepts the Let's Encrypt terms of service when the account is created, and you need it only the first time.
+3. The command prints a TXT record. Add it in your DNS dashboard, wait a minute, and press Enter.
+4. The command writes the certificate and key to `tls_cert_file` and `tls_key_file`, both with mode 600, and reminds you to delete the TXT record.
 
-Add the `_acme-challenge` TXT record that it asks for, then delete the record afterwards. Copy the certificate and key to the paths in `itty.toml`, and set the key file to mode 600. Let's Encrypt certificates last 90 days, and the server logs the days remaining at startup and once a day.
+The command renews only when 30 days or fewer remain, so you can run it as often as you like. Pass `-force` to renew anyway. Let's Encrypt certificates last 90 days, and the server logs the days remaining at startup and once a day.
+
+The default `manual` provider stores no DNS credentials on the VM, but it needs you to add the record each time. To renew without you, the project needs a provider for your DNS service. A provider is a Go package that publishes and removes one TXT record, plus one line in `cmd/itty/renew.go` that lists it. Contributions are welcome.
 
 ## Configuration
 
@@ -51,6 +54,10 @@ Add the `_acme-challenge` TXT record that it asks for, then delete the record af
 | `data_dir` | Where itty keeps enrolled passkeys and the enrollment link. |
 | `log_file` | The structured JSON log. itty does not rotate it. |
 | `tls_cert_file`, `tls_key_file` | The certificate and key. Required unless the hostname is `localhost`. |
+| `acme_email` | The email for the Let's Encrypt account. Required by `renew-cert`. |
+| `acme_directory` | The ACME server. Defaults to Let's Encrypt production. Use `https://acme-staging-v02.api.letsencrypt.org/directory` to test without rate limits. |
+| `dns_provider` | The DNS provider that `renew-cert` uses. Defaults to `manual`. |
+| `acme_propagation_wait_seconds` | If set, `renew-cert` waits this long after the record is added instead of querying the authoritative name servers. Use it if this machine cannot reach them. |
 
 ## Known limits
 

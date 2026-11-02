@@ -25,6 +25,7 @@ func initCommand(args []string) error {
 	fs.StringVar(&cfg.TmuxSession, "tmux-session", cfg.TmuxSession, "name of the tmux session to attach to")
 	fs.StringVar(&cfg.TLSCertFile, "tls-cert", "", "path to the certificate file (PEM)")
 	fs.StringVar(&cfg.TLSKeyFile, "tls-key", "", "path to the private key file (PEM)")
+	fs.StringVar(&cfg.ACMEEmail, "acme-email", "", "email for the Let's Encrypt account, used by renew-cert")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

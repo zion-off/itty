@@ -71,7 +71,7 @@ A later automatic mode, in which itty obtains and renews the certificate itself,
 
 A DNS provider is a plugin with two operations, which are to publish a TXT record with a given name and value and to remove it. The default provider is the manual one. It prints the record name and value, waits while the operator adds the record in their DNS dashboard, and later reminds the operator to delete it. With the manual provider, no DNS credentials are stored on the VM.
 
-A provider that publishes the record through a DNS service's API makes renewal unattended, so the operator can run it on a schedule. That provider needs a credential on the VM, and the operator decides whether that trade-off is acceptable. itty ships the manual provider first, and a provider for Cloudflare is planned as the first API-based one. Providers are part of the itty repository and are compiled into the program. An operator whose DNS service has no provider writes one and contributes it as a pull request, and every operator then gets it in the next release. A provider is a new package that implements the interface, plus one line where the program lists the available providers. The configuration file names the provider to use and holds that provider's settings.
+A provider that publishes the record through a DNS service's API makes renewal unattended, so the operator can run it on a schedule. That provider needs a credential on the VM, and the operator decides whether that trade-off is acceptable. itty ships the manual provider first, and a provider for Cloudflare is planned as the first API-based one. The ACME client is the `lego` library. `itty renew-cert` renews only when 30 days or fewer remain, unless it is forced, and it checks that the issued certificate matches its key and covers the hostname before it replaces the files. Providers are part of the itty repository and are compiled into the program. An operator whose DNS service has no provider writes one and contributes it as a pull request, and every operator then gets it in the next release. A provider is a new package that implements the interface, plus one line where the program lists the available providers. The configuration file names the provider to use and holds that provider's settings.
 
 If the certificate expires, the web app stops working until the operator renews it. To make that unlikely, the server logs the days until expiry at startup and once a day. The lock screen also shows the days remaining when the number is low. The operator can give the Let's Encrypt account an email address to receive expiry notices.
 
@@ -165,7 +165,6 @@ The server never logs ticket values, challenge values or terminal input and outp
 ## Open questions
 
 - The contribution guide for new DNS providers, including the tests that every provider must pass, such as a shared set of checks against the interface.
-- Whether the ACME code uses `golang.org/x/crypto/acme` or the `lego` library.
 - The default location of the configuration file. Relative paths in the file resolve against the file's directory.
 - Whether the log file is rotated by itty or left to the operator.
 - How the server gets permission to listen on port 443, either by a configurable port behind a reverse proxy or by a system capability.
