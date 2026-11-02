@@ -22,8 +22,13 @@ const KeyBar = (() => {
     return el;
   };
 
+  const SYMBOL_VARIANTS = ['|', '~', '`', '\\', '-'];
+  const CONTROL_VARIANTS = ['c', 'd', 'z'];
+  const FLICK_REPEAT_DELAY_MS = 100;
+
   const create = ({ container, hintContainer, send, applicationCursorMode, keyboard, onCtrlChange = () => {} }) => {
     let ctrlActive = false;
+    const flickMenu = FlickMenu.create({ host: hintContainer });
 
     const hint = document.createElement('div');
     hint.className = 'key-hint';
@@ -46,8 +51,20 @@ const KeyBar = (() => {
 
     const sendArrow = (direction) => () => send(Keys.arrow(direction, applicationCursorMode()));
 
-    const arrowKey = (slot, name, direction) =>
-      key({ slot, name: `${name} arrow`, icon: ICONS[slot], arrow: true, repeats: true, onPress: sendArrow(direction) });
+    const sendNavigation = (name) => () => send(Keys.navigation(name, applicationCursorMode()));
+
+    const typed = (text) => ({ label: text, run: () => send(text) });
+
+    const arrowKey = (slot, name, direction, variant) =>
+      key({
+        slot,
+        name: `${name} arrow`,
+        icon: ICONS[slot],
+        arrow: true,
+        repeats: true,
+        onPress: sendArrow(direction),
+        flick: [{ label: variant.label, run: sendNavigation(variant.navigation) }],
+      });
 
     const ctrlKey = key({
       slot: 'ctrl',
@@ -69,20 +86,33 @@ const KeyBar = (() => {
     hintContainer.append(hint);
     container.append(
       group('keys-main', [
-        key({ slot: 'esc', name: 'Escape', label: 'esc', onPress: () => send('\x1b') }),
-        key({ slot: 'tab', name: 'Tab', icon: ICONS.tab, onPress: () => send('\t') }),
+        key({
+          slot: 'esc',
+          name: 'Escape',
+          label: 'esc',
+          onPress: () => send('\x1b'),
+          flick: CONTROL_VARIANTS.map((letter) => ({ label: `^${letter.toUpperCase()}`, run: () => send(Keys.controlByte(letter)) })),
+        }),
+        key({
+          slot: 'tab',
+          name: 'Tab',
+          icon: ICONS.tab,
+          onPress: () => send('\t'),
+          flick: [{ label: '⇧Tab', run: () => send(Keys.BACKTAB) }],
+        }),
         ctrlKey,
+        key({ slot: 'slash', name: 'Slash', label: '/', onPress: () => send('/'), flick: SYMBOL_VARIANTS.map(typed) }),
       ]),
       group('keys-arrows', [
-        arrowKey('left', 'Left', 'D'),
-        arrowKey('up', 'Up', 'A'),
-        arrowKey('down', 'Down', 'B'),
-        arrowKey('right', 'Right', 'C'),
+        arrowKey('left', 'Left', 'D', { label: 'Home', navigation: 'home' }),
+        arrowKey('up', 'Up', 'A', { label: 'PgUp', navigation: 'pageUp' }),
+        arrowKey('down', 'Down', 'B', { label: 'PgDn', navigation: 'pageDown' }),
+        arrowKey('right', 'Right', 'C', { label: 'End', navigation: 'end' }),
       ]),
       group('keys-keyboard', [keyboardKey]),
     );
 
-    function key({ slot, name, label, icon: markup, arrow = false, repeats = false, onPress = () => {}, onClick }) {
+    function key({ slot, name, label, icon: markup, arrow = false, repeats = false, flick = null, onPress = () => {}, onClick }) {
       const el = document.createElement('button');
       el.type = 'button';
       el.className = `key key-${slot}${arrow ? ' key-arrow' : ''}`;
@@ -90,6 +120,16 @@ const KeyBar = (() => {
       if (markup) el.innerHTML = markup;
       else el.textContent = label;
 
+      if (flick) attachFlick(el, { name, flick, repeats, onPress });
+      else attachPress(el, { repeats, onPress });
+      el.addEventListener('click', (event) => {
+        if (event.detail === 0) onPress();
+        onClick?.();
+      });
+      return el;
+    }
+
+    function attachPress(el, { repeats, onPress }) {
       const hold = repeats ? Repeat.create({ action: onPress }) : null;
       Press.attach(el, {
         scale: PRESSED_SCALE,
@@ -100,11 +140,32 @@ const KeyBar = (() => {
         },
         onUp: () => hold?.stop(),
       });
-      el.addEventListener('click', (event) => {
-        if (event.detail === 0) onPress();
-        onClick?.();
+    }
+
+    function attachFlick(el, { name, flick, repeats, onPress }) {
+      el.classList.add('has-flick');
+      const point = (event) => ({ x: event.clientX, y: event.clientY });
+      const gesture = Flick.create({
+        hit: flickMenu.hit,
+        repeat: repeats ? Repeat.create({ action: onPress, delayMs: FLICK_REPEAT_DELAY_MS }) : null,
+        onTap: onPress,
+        onOpen: () => flickMenu.show(flick.map((option) => option.label), el),
+        onHighlight: flickMenu.highlight,
+        onClose: flickMenu.hide,
+        onSelect: (index) => {
+          console.info('itty: key variant', name, flick[index].label);
+          flick[index].run();
+        },
       });
-      return el;
+      Press.attach(el, { scale: PRESSED_SCALE });
+      el.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        el.setPointerCapture?.(event.pointerId);
+        gesture.down(point(event));
+      });
+      el.addEventListener('pointermove', (event) => gesture.move(point(event)));
+      el.addEventListener('pointerup', (event) => gesture.up(point(event)));
+      el.addEventListener('pointercancel', gesture.cancel);
     }
 
     return {

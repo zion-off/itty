@@ -628,6 +628,8 @@ body:not(.locked) #lock {
   --key-function: #3a3a3c;
   --key-regular: #5c5c60;
   --key-shadow: none;
+  --chip-bg: #1c1c1e;
+  --dock-radius: 1.75rem;
   position: absolute;
   right: 0;
   bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
@@ -635,7 +637,7 @@ body:not(.locked) #lock {
   margin-inline: auto;
   width: calc(var(--capsule-w) + (100% - 2 * var(--dock-edge) - var(--capsule-w)) * var(--expand));
   height: calc(var(--capsule-h) + (var(--bar-h) - var(--capsule-h)) * var(--expand));
-  border-radius: 1.75rem;
+  border-radius: var(--dock-radius);
 }
 
 .dock-surface {
@@ -714,6 +716,7 @@ html[data-keyboard="open"] #keybar {
   --key-function: unset;
   --key-regular: unset;
   --key-shadow: unset;
+  --chip-bg: var(--material-chip);
   position: relative;
   right: auto;
   bottom: auto;
@@ -753,7 +756,7 @@ html[data-keyboard="open"] .dock-handle {
   min-width: 0;
 }
 
-.keys-main { flex: 3 1 0; }
+.keys-main { flex: 4 1 0; }
 .keys-arrows { flex: 4 1 0; }
 .keys-keyboard { flex: 1 1 0; }
 
@@ -796,6 +799,71 @@ html[data-keyboard="open"] .dock-handle {
   height: 1.125rem;
 }
 
+html:not([data-keyboard="open"]) .keys-main > .key:first-child {
+  border-top-left-radius: calc(var(--dock-radius) - var(--space-2));
+  border-bottom-left-radius: calc(var(--dock-radius) - var(--space-2));
+}
+
+html:not([data-keyboard="open"]) .keys-keyboard > .key:last-child {
+  border-top-right-radius: calc(var(--dock-radius) - var(--space-2));
+  border-bottom-right-radius: calc(var(--dock-radius) - var(--space-2));
+}
+
+.key.has-flick {
+  position: relative;
+  touch-action: none;
+}
+
+.key.has-flick::after {
+  content: '';
+  position: absolute;
+  top: 0.3125rem;
+  right: 0.3125rem;
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+}
+
+.flick-menu {
+  --presence: 0;
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  display: flex;
+  gap: 0.125rem;
+  padding: var(--space-1);
+  border-radius: 1.5rem;
+  background: var(--chip-bg);
+  box-shadow: var(--chip-shadow);
+  -webkit-backdrop-filter: blur(calc(var(--blur-chip) * var(--presence))) saturate(var(--material-saturation));
+  backdrop-filter: blur(calc(var(--blur-chip) * var(--presence))) saturate(var(--material-saturation));
+  opacity: var(--presence);
+  pointer-events: none;
+  transform: scale(calc(0.85 + 0.15 * var(--presence)));
+}
+
+.flick-menu[data-state="hidden"] {
+  visibility: hidden;
+}
+
+.flick-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target);
+  height: var(--touch-target);
+  padding: 0 var(--space-2);
+  border-radius: 1.25rem;
+  color: var(--label);
+  font: 600 var(--text-body)/1 var(--font-ui);
+}
+
+.flick-option.highlighted {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+
 .key.pressed {
   background: var(--key-bg-pressed);
 }
@@ -812,7 +880,7 @@ html[data-keyboard="open"] .dock-handle {
   bottom: calc(100% + var(--space-2));
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-pill);
-  background: var(--material-chip);
+  background: var(--chip-bg);
   box-shadow: var(--chip-shadow);
   -webkit-backdrop-filter: blur(calc(var(--blur-chip) * var(--presence))) saturate(var(--material-saturation));
   backdrop-filter: blur(calc(var(--blur-chip) * var(--presence))) saturate(var(--material-saturation));
