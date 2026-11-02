@@ -429,6 +429,76 @@ h1 {
   transform: scale(var(--press-scale, 1));
 }
 
+.session-item {
+  display: flex;
+  align-items: center;
+}
+
+.session-item .session-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-drill,
+.session-back {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  border: 0;
+  border-radius: var(--radius-key);
+  background: transparent;
+  color: var(--label-secondary, var(--accent));
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transform: scale(var(--press-scale, 1));
+}
+
+.session-drill.pressed,
+.session-back.pressed {
+  background: var(--fill);
+}
+
+.session-drill svg,
+.session-back svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.session-back {
+  width: 100%;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  color: var(--accent);
+  font: 600 var(--text-body)/var(--leading-compact) var(--font-ui);
+}
+
+.session-back .session-row-name {
+  color: var(--label);
+}
+
+.session-row-index {
+  flex: none;
+  min-width: 1ch;
+  color: var(--label-secondary, var(--accent));
+  font-variant-numeric: tabular-nums;
+}
+
+.session-row .session-row-name {
+  flex: 1;
+}
+
+.session-empty {
+  display: block;
+  padding: var(--space-3);
+  color: var(--label-secondary, var(--accent));
+  font: 500 var(--text-body)/var(--leading-compact) var(--font-ui);
+}
+
 .session-row.pressed {
   background: var(--fill);
 }

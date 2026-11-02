@@ -7,6 +7,11 @@ const Switcher = (() => {
   const CHECK =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
+  const CHEVRON_RIGHT =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+  const CHEVRON_LEFT =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
+
   const keepFocus = (event) => event.preventDefault();
 
   const create = ({ root, sessions, send }) => {
@@ -16,6 +21,7 @@ const Switcher = (() => {
     const status = StatusLine.create(pill);
     const presence = Presence.create({ element: menu, visible: false });
     let open = false;
+    let drilled = null;
     let errorTimer = null;
 
     const showLabel = () => {
@@ -28,6 +34,7 @@ const Switcher = (() => {
     const setOpen = (next) => {
       if (open === next) return;
       open = next;
+      if (!open) drilled = null;
       pill.setAttribute('aria-expanded', String(open));
       menu.inert = !open;
       scrim.hidden = !open;
@@ -44,25 +51,83 @@ const Switcher = (() => {
       showLabel();
     };
 
-    const row = (name, current) => {
+    const button = (className, onClick) => {
       const el = document.createElement('button');
       el.type = 'button';
-      el.className = 'session-row';
-      el.setAttribute('role', 'menuitemradio');
-      el.setAttribute('aria-checked', String(name === current));
-      const label = document.createElement('span');
-      label.className = 'session-row-name';
-      label.textContent = name;
-      el.append(label);
-      if (name === current) el.insertAdjacentHTML('beforeend', CHECK);
+      el.className = className;
       Press.attach(el, { scale: ROW_PRESSED_SCALE, onDown: keepFocus });
-      el.addEventListener('click', () => choose(name));
+      el.addEventListener('click', onClick);
       return el;
     };
 
-    const renderRows = () => {
+    const label = (className, text) => {
+      const el = document.createElement('span');
+      el.className = className;
+      el.textContent = text;
+      return el;
+    };
+
+    const sessionRow = (name, current) => {
+      const item = document.createElement('div');
+      item.className = 'session-item';
+      const main = button('session-row', () => choose(name));
+      main.setAttribute('role', 'menuitemradio');
+      main.setAttribute('aria-checked', String(name === current));
+      main.append(label('session-row-name', name));
+      if (name === current) main.insertAdjacentHTML('beforeend', CHECK);
+      const drill = button('session-drill', () => openWindows(name));
+      drill.setAttribute('aria-label', `Windows in ${name}`);
+      drill.insertAdjacentHTML('beforeend', CHEVRON_RIGHT);
+      item.append(main, drill);
+      return item;
+    };
+
+    const windowRow = (session, win) => {
+      const el = button('session-row', () => chooseWindow(session, win.id));
+      el.setAttribute('role', 'menuitemradio');
+      el.setAttribute('aria-checked', String(win.active));
+      el.append(label('session-row-index', String(win.index)), label('session-row-name', win.name || `window ${win.index}`));
+      if (win.active) el.insertAdjacentHTML('beforeend', CHECK);
+      return el;
+    };
+
+    const renderSessions = () => {
       const { current, sessions: names } = sessions.state();
-      menu.replaceChildren(...names.map((name) => row(name, current)));
+      menu.setAttribute('aria-label', 'tmux sessions');
+      menu.replaceChildren(...names.map((name) => sessionRow(name, current)));
+    };
+
+    const renderWindows = () => {
+      const back = button('session-back', () => closeWindows());
+      back.insertAdjacentHTML('beforeend', CHEVRON_LEFT);
+      back.append(label('session-row-name', drilled));
+      const windows = sessions.windowsOf(drilled);
+      const rows = windows === null ? [label('session-empty', 'Loading…')] : windows.map((win) => windowRow(drilled, win));
+      menu.setAttribute('aria-label', `tmux windows in ${drilled}`);
+      menu.replaceChildren(back, ...rows);
+    };
+
+    const render = () => (drilled === null ? renderSessions() : renderWindows());
+
+    const openWindows = (name) => {
+      drilled = name;
+      const message = sessions.windowsMessage(name);
+      if (message) send(message);
+      render();
+    };
+
+    const closeWindows = () => {
+      drilled = null;
+      render();
+    };
+
+    const chooseWindow = (session, id) => {
+      const message = sessions.selectMessage(session, id);
+      setOpen(false);
+      if (!message) return;
+      console.info('itty: selecting window', session, id);
+      send(message);
+      showLabel();
     };
 
     const showError = (message) => {
@@ -73,7 +138,10 @@ const Switcher = (() => {
     };
 
     const toggle = () => {
-      if (!open) send(sessions.listMessage());
+      if (!open) {
+        drilled = null;
+        send(sessions.listMessage());
+      }
       setOpen(!open);
     };
 
@@ -98,8 +166,13 @@ const Switcher = (() => {
           showError(update.message);
           return;
         }
+        if (update.type === 'windows') {
+          if (drilled === update.session) renderWindows();
+          return;
+        }
         clearTimeout(errorTimer);
-        renderRows();
+        if (drilled !== null && !sessions.state().sessions.includes(drilled)) drilled = null;
+        render();
         showLabel();
         console.info('itty: session', sessions.state().current);
       },
@@ -107,6 +180,7 @@ const Switcher = (() => {
         clearTimeout(errorTimer);
         sessions.forget();
         setOpen(false);
+        drilled = null;
         menu.replaceChildren();
         showLabel();
       },
