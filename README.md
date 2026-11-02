@@ -31,6 +31,18 @@ itty serve
 
 Add the page to your home screen from the browser's share menu.
 
+## Change a setting
+
+`itty config` reads and changes settings without editing the file by hand.
+
+```
+itty config show
+itty config get listen
+itty config set listen 10.0.0.5:9445
+```
+
+`set` checks the new value before it saves it, and it refuses a value that would make the config invalid. Changes apply after a restart, so run `itty service restart` if you run itty as a service. If you change the port, update the network rule that lets your phone reach it. If you change the hostname, you must run `itty enroll` again, because passkeys are tied to the hostname.
+
 ## Run it as a service
 
 `itty service install` writes a systemd unit that starts itty at boot, restarts it if it crashes, and runs it as your user. It fills in the path of the `itty` binary you ran, the config file you pass with `-config`, and your user name. It then enables and starts the service. The command uses `sudo` for the steps that need root, and skips it when you run it as root.
