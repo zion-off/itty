@@ -22,7 +22,7 @@ const KeyBar = (() => {
     return el;
   };
 
-  const create = ({ container, send, applicationCursorMode, keyboard }) => {
+  const create = ({ container, hintContainer, send, applicationCursorMode, keyboard, onCtrlChange = () => {} }) => {
     let ctrlActive = false;
 
     const hint = document.createElement('div');
@@ -35,6 +35,7 @@ const KeyBar = (() => {
       ctrlActive = active;
       ctrlKey.classList.toggle('active', active);
       ctrlKey.setAttribute('aria-pressed', String(active));
+      onCtrlChange(active);
       if (active) hintPresence.show();
       else hintPresence.hide();
     };
@@ -65,8 +66,8 @@ const KeyBar = (() => {
     });
     keyboardKey.setAttribute('aria-pressed', 'false');
 
+    hintContainer.append(hint);
     container.append(
-      hint,
       group('keys-main', [
         key({ slot: 'esc', name: 'Escape', label: 'esc', onPress: () => send('\x1b') }),
         key({ slot: 'tab', name: 'Tab', icon: ICONS.tab, onPress: () => send('\t') }),

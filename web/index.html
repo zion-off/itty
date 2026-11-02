@@ -33,7 +33,15 @@
     </div>
   </div>
   <div id="terminal" aria-label="Terminal"></div>
-  <div id="keybar" role="toolbar" aria-label="Terminal keys"></div>
+  <div id="keybar" class="dock" data-dock="collapsed">
+    <div class="dock-surface">
+      <button id="dock-handle" class="dock-handle" type="button" aria-label="Show keys" aria-expanded="false" aria-controls="keys">
+        <svg class="dock-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
+        <span class="dock-armed" aria-hidden="true">⌃ Ctrl</span>
+      </button>
+      <div id="keys" class="dock-keys" role="toolbar" aria-label="Terminal keys" inert></div>
+    </div>
+  </div>
 </div>
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lock-title">
   <div class="lock-content">
@@ -73,6 +81,7 @@
 <script src="/sessions.js"></script>
 <script src="/switcher.js"></script>
 <script src="/keybar.js"></script>
+<script src="/dock.js"></script>
 <script src="/mouse.js"></script>
 <script src="/stepper.js"></script>
 <script src="/momentum.js"></script>

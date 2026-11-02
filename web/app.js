@@ -40,14 +40,23 @@
       console.info('itty: keyboard', showing ? 'shown' : 'hidden');
       document.documentElement.dataset.keyboard = showing ? 'open' : 'closed';
       keyBar.setKeyboardShowing(showing);
+      dock.setKeyboardOpen(showing);
     },
   });
+  const dockElement = document.getElementById('keybar');
+  const dockHandle = document.getElementById('dock-handle');
+  const dock = Dock.create({ root: dockElement, handle: dockHandle, keys: document.getElementById('keys') });
   const keyBar = KeyBar.create({
-    container: document.getElementById('keybar'),
+    container: document.getElementById('keys'),
+    hintContainer: dockElement,
+    onCtrlChange: dock.setArmed,
     send: sendText,
     applicationCursorMode: () => term.modes.applicationCursorKeysMode,
     keyboard,
   });
+  Press.attach(dockHandle, { scale: 0.92 });
+  dockHandle.addEventListener('click', dock.expand);
+  dockElement.addEventListener('pointerdown', dock.touch);
   const touch = Touch.create({ element: terminalElement, term, send: sendText });
   const attempts = Attempts.create({ timeoutMs: UNLOCK_TIMEOUT_MS });
   const sessions = Sessions.create();
