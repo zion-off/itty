@@ -1,6 +1,8 @@
 const Touch = (() => {
   const COMPAT_MOUSE_WINDOW_MS = 800;
   const CLICK_SUPPRESS_MS = 600;
+  const WHEEL_LINES = 5;
+  const MAX_STEPS = 8;
 
   const create = ({ element, term, send, now = () => performance.now() }) => {
     let lastTouchAt = -Infinity;
@@ -18,15 +20,29 @@ const Touch = (() => {
       };
     };
 
+    const cellHeight = () => term.element.querySelector('.xterm-screen').getBoundingClientRect().height / term.rows;
+    const wheelStepPx = () => cellHeight() * WHEEL_LINES;
+
+    const emitScroll = ({ direction, steps, x, y }) => {
+      const { col, row } = cellAt({ x, y });
+      send(Mouse.wheel(direction, col, row).repeat(steps));
+    };
+
+    const momentum = Momentum.create({
+      stepper: Stepper.create({ stepPx: wheelStepPx, maxSteps: MAX_STEPS }),
+      emit: emitScroll,
+    });
+
     const gesture = Gesture.create({
+      stepPx: wheelStepPx,
+      maxStepsPerMove: MAX_STEPS,
+      onTouchStart: momentum.stop,
+      onFling: momentum.fling,
       onTap: (point) => {
         const { col, row } = cellAt(point);
         send(Mouse.press(col, row) + Mouse.release(col, row));
       },
-      onScroll: ({ direction, steps, x, y }) => {
-        const { col, row } = cellAt({ x, y });
-        send(Mouse.wheel(direction, col, row).repeat(steps));
-      },
+      onScroll: emitScroll,
       onSelectStart: (point) => {
         const { col, row } = cellAt(point);
         console.info('itty: touch selection started');
@@ -81,6 +97,7 @@ const Touch = (() => {
     return {
       ignoreClick: () => now() - lastConsumedAt < CLICK_SUPPRESS_MS,
       reset: () => {
+        momentum.stop();
         gestureLive = false;
         gesture.cancel();
       },

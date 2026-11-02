@@ -114,3 +114,24 @@ test('a second pointer is ignored while one is active', () => {
   assert.deepStrictEqual(events, []);
   assert.strictEqual(gesture.up(1), 'tap');
 });
+
+test('releasing a fast drag reports the release velocity in pixels per millisecond', () => {
+  let clock = 0;
+  const flings = [];
+  const { gesture } = harness({ now: () => clock, onFling: (v) => flings.push(v) });
+  gesture.down(1, 0, 0);
+  for (const y of [20, 40, 60]) {
+    clock += 10;
+    gesture.move(1, 0, y);
+  }
+  gesture.up(1);
+  assert.strictEqual(flings.length, 1);
+  assert.ok(Math.abs(flings[0] - 2) < 0.01);
+});
+
+test('touching down notifies so running momentum can stop', () => {
+  let touched = 0;
+  const { gesture } = harness({ onTouchStart: () => touched++ });
+  gesture.down(1, 0, 0);
+  assert.strictEqual(touched, 1);
+});
