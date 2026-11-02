@@ -71,3 +71,22 @@ func TestLoadRequiresTLSForRealHostname(t *testing.T) {
 		t.Fatal("expected error when only the certificate is set")
 	}
 }
+
+func TestACMEDefaults(t *testing.T) {
+	cfg, err := Load(write(t, `hostname = "localhost"`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ACMEDirectory != LetsEncryptProduction || cfg.DNSProvider != "manual" {
+		t.Fatalf("defaults: %+v", cfg)
+	}
+	if filepath.Base(cfg.ACMEDir()) != "acme" {
+		t.Fatalf("acme dir = %s", cfg.ACMEDir())
+	}
+}
+
+func TestLoadRejectsNegativePropagationWait(t *testing.T) {
+	if _, err := Load(write(t, "acme_propagation_wait_seconds = -1")); err == nil {
+		t.Fatal("expected error")
+	}
+}

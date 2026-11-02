@@ -19,9 +19,16 @@ type Config struct {
 	LogFile     string `toml:"log_file"`
 	TLSCertFile string `toml:"tls_cert_file,omitempty"`
 	TLSKeyFile  string `toml:"tls_key_file,omitempty"`
+
+	ACMEEmail              string `toml:"acme_email,omitempty"`
+	ACMEDirectory          string `toml:"acme_directory"`
+	DNSProvider            string `toml:"dns_provider"`
+	ACMEPropagationSeconds int    `toml:"acme_propagation_wait_seconds,omitempty"`
 }
 
 func (c Config) TLSEnabled() bool { return c.TLSCertFile != "" }
+
+const LetsEncryptProduction = "https://acme-v02.api.letsencrypt.org/directory"
 
 func Default() Config {
 	return Config{
@@ -30,6 +37,9 @@ func Default() Config {
 		TmuxSession: "itty",
 		DataDir:     "data",
 		LogFile:     "itty.log",
+
+		ACMEDirectory: LetsEncryptProduction,
+		DNSProvider:   "manual",
 	}
 }
 
@@ -63,6 +73,8 @@ func (c Config) Origin() string {
 	return scheme + "://" + c.Hostname + ":" + port
 }
 
+func (c Config) ACMEDir() string { return filepath.Join(c.DataDir, "acme") }
+
 func (c Config) CredentialsPath() string { return filepath.Join(c.DataDir, "credentials.json") }
 
 func (c Config) EnrollmentPath() string { return filepath.Join(c.DataDir, "enrollment.json") }
@@ -86,6 +98,9 @@ func (c Config) Validate() error {
 	}
 	if (c.TLSCertFile == "") != (c.TLSKeyFile == "") {
 		errs = append(errs, errors.New("tls_cert_file and tls_key_file must be set together"))
+	}
+	if c.ACMEPropagationSeconds < 0 {
+		errs = append(errs, errors.New("acme_propagation_wait_seconds must not be negative"))
 	}
 	if c.TLSCertFile == "" && c.Hostname != "localhost" {
 		errs = append(errs, errors.New("tls_cert_file and tls_key_file are required unless hostname is localhost"))
