@@ -638,6 +638,7 @@ body:not(.locked) #lock {
   width: calc(var(--capsule-w) + (100% - 2 * var(--dock-edge) - var(--capsule-w)) * var(--expand));
   height: calc(var(--capsule-h) + (var(--bar-h) - var(--capsule-h)) * var(--expand));
   border-radius: var(--dock-radius);
+  transform: translate(calc(var(--dock-x, 0px) * (1 - var(--expand))), calc(var(--dock-y, 0px) * (1 - var(--expand))));
 }
 
 .dock-surface {
@@ -675,7 +676,7 @@ body:not(.locked) #lock {
   background: transparent;
   color: var(--label);
   opacity: clamp(0, 1 - var(--expand) * 2.5, 1);
-  touch-action: manipulation;
+  touch-action: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -725,6 +726,7 @@ html[data-keyboard="open"] #keybar {
   width: auto;
   height: var(--bar-h);
   border-radius: 0;
+  transform: none;
 }
 
 html[data-keyboard="open"] .dock-surface {

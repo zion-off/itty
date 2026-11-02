@@ -55,7 +55,28 @@
     keyboard,
   });
   Press.attach(dockHandle, { scale: 0.92 });
-  dockHandle.addEventListener('click', dock.expand);
+  const switcherElement = document.getElementById('switcher');
+  const remPx = (value) => parseFloat(value) * parseFloat(getComputedStyle(document.documentElement).fontSize);
+  function dockBounds() {
+    const style = getComputedStyle(dockElement);
+    const capsuleWidth = remPx(style.getPropertyValue('--capsule-w'));
+    const capsuleHeight = remPx(style.getPropertyValue('--capsule-h'));
+    const edge = parseFloat(getComputedStyle(switcherElement).paddingLeft);
+    const reach = (app.clientWidth - capsuleWidth) / 2 - edge;
+    const homeTop = app.clientHeight - parseFloat(style.bottom) - capsuleHeight;
+    const topLimit = switcherElement.offsetTop + switcherElement.offsetHeight;
+    return { minX: -reach, maxX: reach, minY: topLimit - homeTop, maxY: 0 };
+  }
+  const reposition = Reposition.create({
+    handle: dockHandle,
+    bounds: dockBounds,
+    store: Reposition.createStore(localStorage, 'itty.dock.placement'),
+    onPosition: (axis, value) => dockElement.style.setProperty(`--dock-${axis}`, `${value}px`),
+  });
+  dockHandle.addEventListener('click', () => {
+    if (reposition.ignoreClick()) return;
+    dock.expand();
+  });
   dockElement.addEventListener('pointerdown', dock.touch);
   const touch = Touch.create({ element: terminalElement, term, send: sendText });
   const attempts = Attempts.create({ timeoutMs: UNLOCK_TIMEOUT_MS });
@@ -169,6 +190,7 @@
     const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     document.documentElement.style.setProperty('--app-height', `${height}px`);
     keyboard.refresh();
+    reposition.refresh();
   }
   new ResizeObserver(() => {
     fit.fit();
