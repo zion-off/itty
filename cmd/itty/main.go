@@ -19,6 +19,7 @@ type command func(args []string) error
 
 var commands = map[string]command{
 	"init":       initCommand,
+	"install":    installCommand,
 	"check":      withConfig("check", check),
 	"enroll":     withConfig("enroll", enroll),
 	"renew-cert": renewCommand,

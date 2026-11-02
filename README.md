@@ -16,16 +16,18 @@ itty is for a VM that is reachable only over a private network such as a VPN. It
 
 ```
 go build -o bin/itty ./cmd/itty
-./bin/itty init
-./bin/itty check
-./bin/itty enroll
-./bin/itty serve
+./bin/itty install
+itty init
+itty check
+itty enroll
+itty serve
 ```
 
-1. **`itty init`** asks for the hostname, the listen address and the certificate paths, and writes `itty.toml`. You can pass them as flags instead, for example `itty init -hostname itty.example.com -listen 10.0.0.5:9444 -tls-cert certs/fullchain.pem -tls-key certs/privkey.pem`. It refuses to overwrite an existing file unless you pass `-force`.
-2. **`itty check`** verifies the setup before you start. It looks for tmux, a writable data directory, a listen address that belongs to this machine and is free, a certificate that covers the hostname and is not close to expiry, the key file permissions, and a DNS record that matches the listen address. It exits with an error if a check fails.
-3. **`itty enroll`** prints a one-time link that expires after 10 minutes. Open it on the phone to register a passkey. Run it again from a shell on the VM to enroll another passkey or to recover from a lost phone.
-4. **`itty serve`** starts the server. Start it outside tmux, or use `env -u TMUX itty serve`, because tmux refuses to create a nested session.
+1. **`itty install`** copies the binary to `~/.local/bin` so that `itty` works from any directory. Use `-dir` to choose another directory, for example `-dir /usr/local/bin` with `sudo`. Use `-link` to link to `bin/itty` instead of copying, so that a rebuild updates the installed command. If the directory is not on your `PATH`, the command prints the `export PATH=...` line to add to your shell startup file, and it does not edit that file itself. Running it again replaces the installed binary with the one you ran.
+2. **`itty init`** asks for the hostname, the listen address and the certificate paths, and writes `itty.toml`. You can pass them as flags instead, for example `itty init -hostname itty.example.com -listen 10.0.0.5:9444 -tls-cert certs/fullchain.pem -tls-key certs/privkey.pem`. It refuses to overwrite an existing file unless you pass `-force`.
+3. **`itty check`** verifies the setup before you start. It looks for tmux, a writable data directory, a listen address that belongs to this machine and is free, a certificate that covers the hostname and is not close to expiry, the key file permissions, and a DNS record that matches the listen address. It exits with an error if a check fails.
+4. **`itty enroll`** prints a one-time link that expires after 10 minutes. Open it on the phone to register a passkey. Run it again from a shell on the VM to enroll another passkey or to recover from a lost phone.
+5. **`itty serve`** starts the server. Start it outside tmux, or use `env -u TMUX itty serve`, because tmux refuses to create a nested session.
 
 Add the page to your home screen from the browser's share menu.
 
