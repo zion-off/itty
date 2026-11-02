@@ -23,6 +23,7 @@ const Gesture = (() => {
     let start = { x: 0, y: 0 };
     let last = { x: 0, y: 0 };
     let samples = [];
+    let startedAt = 0;
     let timer = null;
 
     const stopTimer = () => {
@@ -60,6 +61,7 @@ const Gesture = (() => {
         state = 'pending';
         start = { x, y };
         last = { x, y };
+        startedAt = now();
         timer = setTimer(() => {
           timer = null;
           state = 'selecting';
@@ -78,7 +80,7 @@ const Gesture = (() => {
           stopTimer();
           state = 'scrolling';
           last = { x: start.x, y: start.y };
-          samples = [{ y: start.y, t: now() }];
+          samples = [{ y: start.y, t: startedAt }];
         }
         if (state === 'scrolling') {
           scrollBy(y - last.y, point);
