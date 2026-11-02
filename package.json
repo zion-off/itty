@@ -17,7 +17,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint web/src",
     "test": "tsc -p tsconfig.json && node --require ./web/test-setup.js --test web/*.test.js",
-    "check:build": "scripts/check-web-build.sh"
+    "check:build": "scripts/check-web-build.sh",
+    "postinstall": "node scripts/exclude-node-modules-from-go.mjs",
+    "check": "pnpm typecheck && pnpm lint && pnpm check:build && pnpm test"
   },
   "packageManager": "pnpm@9.15.9"
 }

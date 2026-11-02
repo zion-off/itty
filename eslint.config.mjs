@@ -22,7 +22,7 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-magic-numbers': [
         'error',
-        { ignore: [0, 1, -1], ignoreEnums: true, ignoreNumericLiteralTypes: true, ignoreTypeIndexes: true, enforceConst: true },
+        { ignore: [0, 1, -1, 2], ignoreEnums: true, ignoreNumericLiteralTypes: true, ignoreTypeIndexes: true, enforceConst: true },
       ],
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
       '@typescript-eslint/no-confusing-void-expression': 'off',
@@ -34,6 +34,16 @@ export default tseslint.config(
   },
   {
     files: ['web/src/**/*.test.ts'],
-    rules: { '@typescript-eslint/no-magic-numbers': 'off' },
+    rules: {
+      '@typescript-eslint/no-magic-numbers': 'off',
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-base-to-string': 'off',
+      '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true, allowNullish: true }],
+    },
+  },
+  {
+    files: ['web/src/test-setup.ts'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
 );

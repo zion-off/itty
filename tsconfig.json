@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "nodenext",
+    "module": "CommonJS",
+    "moduleDetection": "legacy",
+    "esModuleInterop": true,
     "types": ["node"],
     "rootDir": "web/src",
     "outDir": "web",
@@ -17,5 +19,6 @@
     "newLine": "lf",
     "skipLibCheck": true
   },
-  "include": ["web/src/**/*.ts"]
+  "include": ["web/src/**/*.ts"],
+  "exclude": ["node_modules"]
 }
