@@ -1,11 +1,21 @@
 (() => {
+  const app = document.getElementById('app');
   const lock = document.getElementById('lock');
   const lockStatus = document.getElementById('lock-status');
   const unlockButton = document.getElementById('unlock');
   const certWarning = document.getElementById('cert-warning');
   const CERT_WARNING_DAYS = 14;
 
-  const term = new Terminal({ cursorBlink: true, fontSize: 14, scrollback: 0 });
+  const term = new Terminal({
+    cursorBlink: true,
+    fontSize: 14,
+    fontFamily: TerminalTheme.fontFamily,
+    theme: TerminalTheme.current(),
+    scrollback: 0,
+  });
+  TerminalTheme.onChange((theme) => {
+    term.options.theme = theme;
+  });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   term.open(document.getElementById('terminal'));
@@ -38,8 +48,14 @@
     }
   }
 
+  function setLocked(locked) {
+    document.body.classList.toggle('locked', locked);
+    app.inert = locked;
+    lock.inert = !locked;
+  }
+
   function showLock(message) {
-    lock.hidden = false;
+    setLocked(true);
     lockStatus.textContent = message || '';
     refreshCertWarning();
   }
@@ -69,7 +85,7 @@
     socket = new WebSocket(`${scheme}://${location.host}/ws?ticket=${encodeURIComponent(ticket)}`);
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
-      lock.hidden = true;
+      setLocked(false);
       fit.fit();
       sendResize();
       term.focus();
