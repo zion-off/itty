@@ -1,15 +1,23 @@
 (() => {
+  const button = document.getElementById('enroll');
   const status = document.getElementById('status');
   const token = location.hash.slice(1);
   history.replaceState(null, '', location.pathname);
 
-  document.getElementById('enroll').addEventListener('click', async () => {
-    status.textContent = '';
+  function showStatus(message, outcome) {
+    status.textContent = message;
+    status.dataset.outcome = outcome || '';
+  }
+
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    showStatus('');
     try {
       await Passkey.enroll(token);
-      status.textContent = 'Passkey registered. You can close this page.';
+      showStatus('Passkey registered. You can close this page.', 'success');
     } catch (err) {
-      status.textContent = `Enrollment failed: ${err.message}`;
+      showStatus(`Enrollment failed: ${err.message}`, 'error');
+      button.disabled = false;
     }
   });
 })();

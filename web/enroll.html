@@ -2,15 +2,24 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <title>itty enrollment</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body class="page">
-<main>
+<main class="card">
+  <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="5" y="11" width="14" height="10" rx="3"/>
+    <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+  </svg>
   <h1>Enroll a passkey</h1>
-  <button id="enroll">Register passkey</button>
-  <p id="status"></p>
+  <p class="card-text">Register this device so it can unlock itty with Face ID.</p>
+  <button id="enroll" class="pill" type="button">Register passkey</button>
+  <p id="status" class="status" role="status"></p>
 </main>
 <script src="/passkey.js"></script>
 <script src="/enroll.js"></script>
