@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "nodenext",
+    "types": ["node"],
+    "rootDir": "web/src",
+    "outDir": "web",
+    "strict": true,
+    "alwaysStrict": false,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "removeComments": true,
+    "newLine": "lf",
+    "skipLibCheck": true
+  },
+  "include": ["web/src/**/*.ts"]
+}

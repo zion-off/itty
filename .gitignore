@@ -26,3 +26,9 @@ coverage.*
 /itty.toml
 /certs/
 /.lego/
+
+# Web client tooling
+node_modules/
+/.build-check/
+/web/*.test.js
+/web/test-setup.js
