@@ -76,6 +76,7 @@ func (s *FileSource) reloadLocked() error {
 	if err != nil {
 		return fmt.Errorf("stat key: %w", err)
 	}
+	s.certMod, s.keyMod = certInfo.ModTime(), keyInfo.ModTime()
 	pair, err := tls.LoadX509KeyPair(s.certPath, s.keyPath)
 	if err != nil {
 		return fmt.Errorf("load certificate and key: %w", err)
@@ -86,7 +87,6 @@ func (s *FileSource) reloadLocked() error {
 	}
 	pair.Leaf = leaf
 	s.cert, s.notAfter = &pair, leaf.NotAfter
-	s.certMod, s.keyMod = certInfo.ModTime(), keyInfo.ModTime()
 	s.log.Info("certificate loaded", "not_after", leaf.NotAfter, "days_remaining", int(leaf.NotAfter.Sub(s.clock.Now()).Hours()/24))
 	return nil
 }

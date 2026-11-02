@@ -99,3 +99,27 @@ func TestFailsFastOnMissingFiles(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestFailedReloadIsNotRetriedUntilFilesChangeAgain(t *testing.T) {
+	dir := t.TempDir()
+	certPath, keyPath := writePair(t, dir, time.Now().Add(time.Hour), 1)
+	s, _ := NewFileSource(certPath, keyPath, "itty.example.com", clock.System{}, discard())
+	hello := &tls.ClientHelloInfo{ServerName: "itty.example.com"}
+
+	_ = os.WriteFile(certPath, []byte("garbage"), 0o600)
+	t1 := time.Now().Add(time.Minute)
+	_ = os.Chtimes(certPath, t1, t1)
+	_, _ = s.GetCertificate(hello)
+	if s.changed() {
+		t.Fatal("the failed reload should not be retried while the files are unchanged")
+	}
+
+	writePair(t, dir, time.Now().Add(90*24*time.Hour), 2)
+	t2 := time.Now().Add(2 * time.Minute)
+	_ = os.Chtimes(certPath, t2, t2)
+	_ = os.Chtimes(keyPath, t2, t2)
+	cert, _ := s.GetCertificate(hello)
+	if cert.Leaf.SerialNumber.Int64() != 2 {
+		t.Fatal("the repaired files were not loaded")
+	}
+}
