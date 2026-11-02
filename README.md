@@ -97,6 +97,10 @@ The default `manual` provider stores no DNS credentials on the VM, but it needs 
 | `dns_provider` | The DNS provider that `renew-cert` uses. Defaults to `manual`. |
 | `acme_propagation_wait_seconds` | If set, `renew-cert` waits this long after the record is added instead of querying the authoritative name servers. Use it if this machine cannot reach them. |
 
+## Troubleshooting
+
+- **The home-screen app shows a black screen or times out, but the server is running.** On iOS, iCloud Private Relay can reroute Safari and web-app traffic when the server's address is not in a standard private range (`10.0.0.0/8`, `172.16.0.0/12` or `192.168.0.0/16`), which includes some cloud VMs. Turn off Private Relay in Settings, iCloud, Private Relay, and "Limit IP Address Tracking" for your network. To check that the network path itself works, run a Shortcuts "Get contents of URL" action on `https://<hostname>:<port>/status`.
+
 ## Known limits
 
 - Private networks only. The security audit found hardening gaps that matter once the server is reachable from the internet, such as no rate limit on `/auth/challenge`, no security headers and no HTTP read timeouts.
