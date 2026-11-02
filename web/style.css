@@ -199,20 +199,65 @@ body:not(.locked) #lock {
 
 #keybar {
   display: flex;
-  gap: 0.35rem;
-  padding: 0.35rem;
+  gap: 4px;
+  padding: 6px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
   background: var(--material);
+  border-top: 0.5px solid var(--separator);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
+  backdrop-filter: saturate(180%) blur(30px);
 }
 
-#keybar button {
-  flex: 1;
-  font-size: 1rem;
-  padding: 0.55rem 0;
+#keybar::-webkit-scrollbar {
+  display: none;
+}
+
+.key {
+  flex: 1 1 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: var(--key-function);
+  color: var(--fg);
+  font: 500 15px/1 var(--font-ui);
+  box-shadow: var(--key-shadow);
   touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background-color 80ms var(--ease), transform 80ms var(--ease);
 }
 
-#keybar button[hidden] { display: none; }
-#keybar button.active { background: var(--accent); color: var(--on-accent); }
+.key-arrow {
+  background: var(--key);
+  font-size: 19px;
+}
+
+.key.pressed {
+  background: var(--key-pressed);
+  transform: scale(0.94);
+}
+
+.key.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.key[hidden] {
+  display: block;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .key:not(.active):not(.pressed):hover {
+    background: var(--key-pressed);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
