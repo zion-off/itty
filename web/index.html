@@ -18,6 +18,15 @@
 </head>
 <body class="locked">
 <div id="app" inert>
+  <div id="switcher" class="switcher">
+    <button id="session-pill" class="session-pill" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="session-menu" aria-label="Switch session">
+      <span class="spinner" aria-hidden="true"></span>
+      <span class="status-text" aria-live="polite">tmux</span>
+      <svg class="session-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="session-scrim" hidden></div>
+    <div id="session-menu" class="session-menu" role="menu" aria-label="tmux sessions" inert></div>
+  </div>
   <div id="terminal" aria-label="Terminal"></div>
   <div id="keybar" role="toolbar" aria-label="Terminal keys"></div>
 </div>
@@ -56,6 +65,8 @@
 <script src="/focus.js"></script>
 <script src="/passkey.js"></script>
 <script src="/keys.js"></script>
+<script src="/sessions.js"></script>
+<script src="/switcher.js"></script>
 <script src="/keybar.js"></script>
 <script src="/app.js"></script>
 </body>

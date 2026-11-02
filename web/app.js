@@ -30,6 +30,10 @@
     if (socket && socket.readyState === WebSocket.OPEN) socket.send(encoder.encode(data));
   }
 
+  function sendControl(message) {
+    if (socket && socket.readyState === WebSocket.OPEN) socket.send(message);
+  }
+
   const keyboard = Keyboard.create({
     textarea: term.textarea,
     onChange: (showing) => {
@@ -45,6 +49,8 @@
     keyboard,
   });
   const attempts = Attempts.create({ timeoutMs: UNLOCK_TIMEOUT_MS });
+  const sessions = Sessions.create();
+  const switcher = Switcher.create({ root: document.getElementById('switcher'), sessions, send: sendControl });
 
   async function refreshCertWarning() {
     try {
@@ -83,13 +89,19 @@
     attempts.cancel();
     closeSocket();
     term.reset();
+    switcher.reset();
     showLock(message, tone);
   }
 
   function sendResize() {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-    }
+    sendControl(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+  }
+
+  function handleControl(raw) {
+    const update = sessions.receive(raw);
+    if (!update) return;
+    if (update.reset) term.reset();
+    switcher.handle(update);
   }
 
   function connect(ticket) {
@@ -104,6 +116,7 @@
     };
     socket.onmessage = (event) => {
       if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
+      else handleControl(event.data);
     };
     socket.onclose = () => {
       console.warn('itty: connection closed');
