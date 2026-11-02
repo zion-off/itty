@@ -118,19 +118,24 @@
 
   function describeFailure(result) {
     if (result.status === 'timeout') return 'Unlock timed out. Tap Unlock to try again.';
+    if (Focus.isNotFocusedError(result.error)) return 'Tap Unlock to continue.';
     return `Unlock failed: ${result.error.message}`;
   }
 
   async function unlock() {
     if (socket) return;
     lockStatus.show('Waiting for your passkey…', 'pending');
-    const result = await attempts.start((signal) => Passkey.login({ signal }));
+    const result = await attempts.start(async (signal) => {
+      await Focus.whenFocused({ signal });
+      return Passkey.login({ signal });
+    });
     if (result.status === 'stale') return;
     if (result.status === 'ok') {
       connect(result.value);
     } else {
       console.warn('itty: unlock attempt ended', result.status, result.error);
-      showLock(describeFailure(result), 'error');
+      const notFocused = result.status === 'error' && Focus.isNotFocusedError(result.error);
+      showLock(describeFailure(result), notFocused ? 'info' : 'error');
     }
   }
 
