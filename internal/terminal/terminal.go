@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"context"
+	"errors"
 	"io"
 )
 
@@ -22,4 +23,18 @@ type Launcher interface {
 
 type Lister interface {
 	List(ctx context.Context) ([]string, error)
+}
+
+type Window struct {
+	ID     string `json:"id"`
+	Index  int    `json:"index"`
+	Name   string `json:"name"`
+	Active bool   `json:"active"`
+}
+
+var ErrUnknownWindow = errors.New("unknown window")
+
+type Navigator interface {
+	Windows(ctx context.Context, session string) ([]Window, error)
+	SelectWindow(ctx context.Context, session, windowID string) error
 }

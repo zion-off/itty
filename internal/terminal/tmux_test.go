@@ -3,6 +3,7 @@ package terminal
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os/exec"
@@ -131,5 +132,40 @@ func TestListIncludesRunningSessionsSorted(t *testing.T) {
 			t.Fatalf("session %q not listed: %v", name, names)
 		}
 		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func TestWindowsListsAndSelectsWindowsOfOneSession(t *testing.T) {
+	l, name := newTestLauncher(t)
+	if out, err := exec.Command("tmux", "new-session", "-d", "-s", name, "-n", "one", "sleep 60").CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	if out, err := exec.Command("tmux", "new-window", "-t", "="+name, "-n", "two", "sleep 60").CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	ctx := context.Background()
+	windows, err := l.Windows(ctx, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(windows) != 2 || windows[0].Name != "one" || windows[1].Name != "two" || windows[0].Active || !windows[1].Active {
+		t.Fatalf("windows = %+v", windows)
+	}
+	if err := l.SelectWindow(ctx, name, windows[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := l.Windows(ctx, name)
+	if !after[0].Active || after[1].Active {
+		t.Fatalf("after select = %+v", after)
+	}
+	if err := l.SelectWindow(ctx, name, "@999999"); !errors.Is(err, ErrUnknownWindow) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestParseWindowsSkipsMalformedLines(t *testing.T) {
+	got := parseWindows("@1|||0|||1|||a|b\nbroken\n@2|||x|||0|||bad index\n")
+	if len(got) != 1 || got[0].Name != "a|b" || !got[0].Active {
+		t.Fatalf("got %+v", got)
 	}
 }
