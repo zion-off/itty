@@ -521,6 +521,15 @@ h1 {
   font: 500 var(--text-body)/var(--leading-compact) var(--font-ui);
 }
 
+.session-new {
+  justify-content: flex-start;
+  color: var(--accent);
+}
+
+.session-new .session-row-name {
+  color: var(--accent);
+}
+
 .session-row.pressed {
   background: var(--fill);
 }

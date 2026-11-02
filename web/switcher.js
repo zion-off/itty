@@ -12,6 +12,11 @@ const Switcher = (() => {
   const CHEVRON_LEFT =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
 
+  const PLUS =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+  const CLOSE =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
   const keepFocus = (event) => event.preventDefault();
 
   const create = ({ root, sessions, send }) => {
@@ -116,12 +121,31 @@ const Switcher = (() => {
       return item;
     };
 
-    const windowRow = (session, win) => {
-      const el = button('session-row', () => chooseWindow(session, win.id));
-      el.setAttribute('role', 'menuitemradio');
-      el.setAttribute('aria-checked', String(win.active));
-      el.append(label('session-row-index', String(win.index)), label('session-row-name', win.name || `window ${win.index}`));
-      if (win.active) el.insertAdjacentHTML('beforeend', CHECK);
+    const windowName = (win) => win.name || `window ${win.index}`;
+
+    const windowRow = (session, win, closable) => {
+      const item = document.createElement('div');
+      item.className = 'session-item';
+      const main = button('session-row', () => chooseWindow(session, win.id));
+      main.setAttribute('role', 'menuitemradio');
+      main.setAttribute('aria-checked', String(win.active));
+      main.append(label('session-row-index', String(win.index)), label('session-row-name', windowName(win)));
+      if (win.active) main.insertAdjacentHTML('beforeend', CHECK);
+      item.append(main);
+      if (closable) {
+        const close = button('session-drill', () => closeWindow(session, win));
+        close.setAttribute('aria-label', `Close ${windowName(win)}`);
+        close.insertAdjacentHTML('beforeend', CLOSE);
+        item.append(close);
+      }
+      return item;
+    };
+
+    const newWindowRow = (session) => {
+      const el = button('session-row session-new', () => createWindow(session));
+      el.setAttribute('role', 'menuitem');
+      el.insertAdjacentHTML('beforeend', PLUS);
+      el.append(label('session-row-name', 'New window'));
       return el;
     };
 
@@ -136,7 +160,10 @@ const Switcher = (() => {
       back.insertAdjacentHTML('beforeend', CHEVRON_LEFT);
       back.append(label('session-row-name', drilled));
       const windows = sessions.windowsOf(drilled);
-      const rows = windows === null ? [label('session-empty', 'Loading…')] : windows.map((win) => windowRow(drilled, win));
+      const rows =
+        windows === null
+          ? [label('session-empty', 'Loading…')]
+          : [...windows.map((win) => windowRow(drilled, win, windows.length > 1)), newWindowRow(drilled)];
       menu.setAttribute('aria-label', `tmux windows in ${drilled}`);
       windowsPage.replaceChildren(back, ...rows);
     };
@@ -164,9 +191,25 @@ const Switcher = (() => {
       showLabel();
     };
 
+    const createWindow = (session) => {
+      const message = sessions.newWindowMessage(session);
+      setOpen(false);
+      if (!message) return;
+      console.info('itty: creating window', session);
+      send(message);
+      showLabel();
+    };
+
+    const closeWindow = (session, win) => {
+      const message = sessions.closeWindowMessage(session, win.id);
+      if (!message) return;
+      console.info('itty: closing window', session, win.id);
+      send(message);
+    };
+
     const showError = (message) => {
       console.warn('itty: session request rejected', message);
-      status.show(`Could not switch: ${message}`, 'error');
+      status.show(message.charAt(0).toUpperCase() + message.slice(1), 'error');
       clearTimeout(errorTimer);
       errorTimer = setTimeout(showLabel, ERROR_VISIBLE_MS);
     };

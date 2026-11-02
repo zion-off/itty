@@ -153,6 +153,27 @@ test('selecting a window of the current session is not a pending switch', () => 
   assert.strictEqual(s.state().pending, null);
 });
 
+test('newWindowMessage needs a known session and marks a session change as pending', () => {
+  const s = withSessions();
+  assert.strictEqual(s.newWindowMessage('nope'), null);
+  assert.deepStrictEqual(JSON.parse(s.newWindowMessage('b')), { type: 'new_window', session: 'b' });
+  assert.strictEqual(s.state().pending, 'b');
+});
+
+test('creating a window in the current session is not a pending switch', () => {
+  const s = withSessions();
+  assert.ok(s.newWindowMessage('a'));
+  assert.strictEqual(s.state().pending, null);
+});
+
+test('closeWindowMessage needs a known window and never marks a switch', () => {
+  const s = withSessions();
+  s.receive(windowsMessage('b', [win('@4', 1, 'logs')]));
+  assert.strictEqual(s.closeWindowMessage('b', '@9'), null);
+  assert.deepStrictEqual(JSON.parse(s.closeWindowMessage('b', '@4')), { type: 'close_window', session: 'b', window: '@4' });
+  assert.strictEqual(s.state().pending, null);
+});
+
 test('forget drops the stored windows', () => {
   const s = withSessions();
   s.receive(windowsMessage('b', [win('@1', 0, 'zsh')]));

@@ -70,6 +70,16 @@ const Sessions = (() => {
         if (session !== current) pending = session;
         return JSON.stringify({ type: 'select', session, window: windowId });
       },
+      newWindowMessage(session) {
+        if (!list.includes(session)) return null;
+        if (session !== current) pending = session;
+        return JSON.stringify({ type: 'new_window', session });
+      },
+      closeWindowMessage(session, windowId) {
+        const known = (windows.get(session) ?? []).some((w) => w.id === windowId);
+        if (!known || !list.includes(session)) return null;
+        return JSON.stringify({ type: 'close_window', session, window: windowId });
+      },
       windowsOf: (session) => (windows.has(session) ? windows.get(session).map((w) => ({ ...w })) : null),
       listMessage: () => JSON.stringify({ type: 'list' }),
       forget() {
