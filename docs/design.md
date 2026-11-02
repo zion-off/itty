@@ -106,6 +106,8 @@ For each websocket, the server starts a pty that runs `tmux new-session -A` for 
 
 The server remembers the last session that a connection attached to, in a private file in the data directory. At the start of a connection it attaches to that session if it still exists, and otherwise to the default session named in the configuration. The operator can ask to switch to another session while connected. The server accepts only the default session and the names that `tmux list-sessions` reports, passes the name to tmux as one argument and never through a shell, and replaces the attach process while the websocket stays open. A switch keeps the terminal size and saves the new session as the last one.
 
+The operator can also move between the tmux windows of a session, the ones that prefix and `c` creates and prefix and `n` or `p` move between. The server lists the windows of a session with `tmux list-windows`. It selects a window only if its id (such as `@3`) is in that list, passes the id to tmux as one argument and never through a shell, and then switches to the session if the client is not attached to it, so the session opens on the chosen window.
+
 The client sends its terminal size when it connects and whenever the size changes, and the server applies it to the pty.
 
 The pty must have XON/XOFF flow control turned off. Some operators use Ctrl+s as their tmux prefix, which is also the traditional pause key, and it must reach tmux unchanged.
@@ -136,6 +138,10 @@ The client listens for the page becoming hidden and visible. When the page is hi
 The iOS keyboard has no Ctrl, Esc, Tab or arrow keys, so the client shows a key bar. It has a sticky Ctrl key, which applies to the next key typed and sends the matching control byte. It also has Esc, Tab and the arrow keys, which repeat while held, and a key that shows or hides the iOS keyboard. The keys sit in one row. The operator types the tmux prefix with the sticky Ctrl key and the next key. Macro buttons are possible later, and the set of macros is an open question.
 
 A hardware keyboard works without the key bar, because xterm.js passes its keystrokes straight to the pty.
+
+### Session and window menu
+
+The pill at the top of the screen shows the current session. Tapping it opens a menu with two levels. The first level lists the sessions. Tapping a session name switches to it, and tapping the arrow at the end of the row opens the second level, which lists the windows of that session with a check mark on the active one. Tapping a window selects it and switches to its session if needed. The back row returns to the sessions.
 
 ### Touch layer
 
@@ -184,4 +190,4 @@ The server never logs ticket values, challenge values or terminal input and outp
 
 ## Websocket messages
 
-Binary frames carry terminal data in both directions. Text frames carry JSON control messages. The client sends `{"type":"resize","cols":N,"rows":N}` as its first message and again whenever the size changes. The server sends `{"type":"sessions","current":"work","sessions":["itty","work"]}` after it attaches, after every switch and in reply to a list request, and it sends it before the first output of the new session. The client asks for a change with `{"type":"switch","session":"work"}` and for a fresh list with `{"type":"list"}`. The server answers a rejected request with `{"type":"error","message":"unknown session"}` and stays in the current session. The websocket URL carries the ticket in the `ticket` query parameter, and the server never logs URLs.
+Binary frames carry terminal data in both directions. Text frames carry JSON control messages. The client sends `{"type":"resize","cols":N,"rows":N}` as its first message and again whenever the size changes. The server sends `{"type":"sessions","current":"work","sessions":["itty","work"]}` after it attaches, after every switch and in reply to a list request, and it sends it before the first output of the new session. The client asks for a change with `{"type":"switch","session":"work"}` and for a fresh list with `{"type":"list"}`. The client asks for the windows of a session with `{"type":"windows","session":"work"}`, and the server replies with `{"type":"windows","session":"work","windows":[{"id":"@1","index":0,"name":"zsh","active":true}]}`. The client selects a window with `{"type":"select","session":"work","window":"@1"}`. The server answers a rejected request with `{"type":"error","message":"unknown session"}` and stays in the current session. The websocket URL carries the ticket in the `ticket` query parameter, and the server never logs URLs.
