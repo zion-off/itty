@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/pelletier/go-toml/v2"
+
+	"github.com/zion/itty/internal/fsutil"
 )
 
 type Config struct {
@@ -44,6 +46,14 @@ func Default() Config {
 }
 
 func Load(path string) (Config, error) {
+	cfg, err := LoadRaw(path)
+	if err != nil {
+		return Config{}, err
+	}
+	return cfg.Resolved(filepath.Dir(path)), nil
+}
+
+func LoadRaw(path string) (Config, error) {
 	cfg := Default()
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -57,8 +67,18 @@ func Load(path string) (Config, error) {
 	if err := cfg.Validate(); err != nil {
 		return Config{}, fmt.Errorf("invalid config %s: %w", path, err)
 	}
-	cfg.resolvePaths(filepath.Dir(path))
 	return cfg, nil
+}
+
+func Save(path string, cfg Config) error {
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+	raw, err := toml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("render config: %w", err)
+	}
+	return fsutil.WriteFileAtomic(path, raw, 0o600)
 }
 
 func (c Config) Origin() string {
@@ -108,13 +128,14 @@ func (c Config) Validate() error {
 	return errors.Join(errs...)
 }
 
-func (c *Config) resolvePaths(base string) {
+func (c Config) Resolved(base string) Config {
 	c.DataDir = absolute(base, c.DataDir)
 	c.LogFile = absolute(base, c.LogFile)
 	if c.TLSEnabled() {
 		c.TLSCertFile = absolute(base, c.TLSCertFile)
 		c.TLSKeyFile = absolute(base, c.TLSKeyFile)
 	}
+	return c
 }
 
 func absolute(base, p string) string {
