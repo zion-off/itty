@@ -41,26 +41,29 @@ itty config get listen
 itty config set listen 10.0.0.5:9445
 ```
 
-`set` checks the new value before it saves it, and it refuses a value that would make the config invalid. Changes apply after a restart, so run `itty service restart` if you run itty as a service. If you change the port, update the network rule that lets your phone reach it. If you change the hostname, you must run `itty enroll` again, because passkeys are tied to the hostname.
+`set` checks the new value before it saves it, and it refuses a value that would make the config invalid. Changes apply after a restart, so run `itty restart` if you run itty as a service. If you change the port, update the network rule that lets your phone reach it. If you change the hostname, you must run `itty enroll` again, because passkeys are tied to the hostname.
 
 ## Run it as a service
 
-`itty service install` writes a systemd unit that starts itty at boot, restarts it if it crashes, and runs it as your user. It fills in the path of the `itty` binary you ran, the config file you pass with `-config`, and your user name. It then enables and starts the service. The command uses `sudo` for the steps that need root, and skips it when you run it as root.
+`itty service install` writes a systemd unit that starts itty at boot, restarts it if it crashes, and runs it as your user. It fills in the path of the `itty` binary you ran, the config file, and your user name. It then enables and starts the service. The command uses `sudo` for the steps that need root, and skips it when you run it as root.
 
 ```
 itty service install
-itty service status
-itty service restart
-itty service stop
-itty service stop -kill-session
+itty status
+itty restart
+itty stop
+itty start
+itty stop -kill-session
 itty service disable
 itty service uninstall
 ```
 
-- `start`, `stop`, `restart`, `enable` and `disable` map to the matching `systemctl` commands for the `itty` service. `enable` and `disable` control whether it starts at boot.
+- `itty start`, `itty stop`, `itty restart` and `itty status` are shortcuts for `itty service start`, `stop`, `restart` and `status`. `itty service` also has `enable` and `disable`, which control whether itty starts at boot.
 - `stop` leaves the tmux session running. Add `-kill-session` to end the session too.
 - `uninstall` stops and disables the service and removes the unit file.
-- After you rebuild the binary, run `itty service restart`. If you moved the binary or the config file, run `itty service install` again.
+- After you rebuild the binary, run `itty restart`. If you moved the binary or the config file, run `itty service install` again.
+
+Every command finds the config file the same way, so they work from any directory. The order is the `-config` flag, then the `ITTY_CONFIG` environment variable, then `itty.toml` in the current directory, then the config file that the installed service uses.
 
 The unit sets `KillMode=process`. Without it, systemd would also kill the tmux server when itty stops or restarts, because tmux starts inside the service, and that would end your session and everything running in it. The unit has no sandboxing options on purpose, because the shell that a login opens must have the same access as you do. Only systemd on Linux is supported.
 
