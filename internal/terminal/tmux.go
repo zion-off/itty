@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/creack/pty"
@@ -14,16 +16,15 @@ import (
 )
 
 type TmuxLauncher struct {
-	Session string
-	Log     *slog.Logger
+	Log *slog.Logger
 }
 
-func (l TmuxLauncher) Start(ctx context.Context, size Size) (Session, error) {
-	cmd := exec.Command("tmux", "new-session", "-A", "-s", l.Session)
+func (l TmuxLauncher) Start(ctx context.Context, name string, size Size) (Session, error) {
+	cmd := exec.Command("tmux", "new-session", "-A", "-s", name)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: size.Cols, Rows: size.Rows})
 	if err != nil {
-		return nil, fmt.Errorf("start tmux session %q: %w", l.Session, err)
+		return nil, fmt.Errorf("start tmux session %q: %w", name, err)
 	}
 	if err := disableFlowControl(ptmx); err != nil {
 		_ = ptmx.Close()
@@ -31,8 +32,25 @@ func (l TmuxLauncher) Start(ctx context.Context, size Size) (Session, error) {
 		_ = cmd.Wait()
 		return nil, fmt.Errorf("disable flow control: %w", err)
 	}
-	l.Log.InfoContext(ctx, "terminal process started", "session", l.Session, "pid", cmd.Process.Pid)
+	l.Log.InfoContext(ctx, "terminal process started", "session", name, "pid", cmd.Process.Pid)
 	return &ptySession{ptmx: ptmx, cmd: cmd, log: l.Log}, nil
+}
+
+func (l TmuxLauncher) List(ctx context.Context) ([]string, error) {
+	out, err := exec.CommandContext(ctx, "tmux", "list-sessions", "-F", "#{session_name}").Output()
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list tmux sessions: %w", err)
+	}
+	names := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(names) == 1 && names[0] == "" {
+		return nil, nil
+	}
+	sort.Strings(names)
+	return names, nil
 }
 
 func disableFlowControl(f *os.File) error {

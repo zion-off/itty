@@ -66,7 +66,7 @@ type fakeLauncher struct {
 	started chan terminal.Size
 }
 
-func (l *fakeLauncher) Start(_ context.Context, size terminal.Size) (terminal.Session, error) {
+func (l *fakeLauncher) Start(_ context.Context, _ string, size terminal.Size) (terminal.Session, error) {
 	l.started <- size
 	return l.session, nil
 }
@@ -117,7 +117,7 @@ func setup(t *testing.T) env {
 	a := &fakeAuth{tickets: map[string]bool{"good": true}}
 	lim := ratelimit.NewFailureLimiter(clock.System{}, 3, time.Minute)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	ts := httptest.NewServer(New(Deps{Hostname: "localhost", Launcher: l, Auth: a, Limiter: lim, Log: log}))
+	ts := httptest.NewServer(New(Deps{Hostname: "localhost", Launcher: l, DefaultSession: "itty", Auth: a, Limiter: lim, Log: log}))
 	t.Cleanup(ts.Close)
 	return env{ts: ts, base: strings.Replace(ts.URL, "127.0.0.1", "localhost", 1), launch: l, auth: a, limiter: lim}
 }

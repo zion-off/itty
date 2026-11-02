@@ -57,11 +57,12 @@ func serve(cfg config.Config, log *slog.Logger) error {
 	defer stop()
 
 	deps := server.Deps{
-		Hostname: cfg.Hostname,
-		Launcher: terminal.TmuxLauncher{Session: cfg.TmuxSession, Log: log},
-		Auth:     authService,
-		Limiter:  ratelimit.NewFailureLimiter(clk, maxFailedLogins, failureWindow),
-		Log:      log,
+		Hostname:       cfg.Hostname,
+		Launcher:       terminal.TmuxLauncher{Log: log},
+		DefaultSession: cfg.TmuxSession,
+		Auth:           authService,
+		Limiter:        ratelimit.NewFailureLimiter(clk, maxFailedLogins, failureWindow),
+		Log:            log,
 	}
 	srv := &http.Server{
 		Addr:              cfg.Listen,

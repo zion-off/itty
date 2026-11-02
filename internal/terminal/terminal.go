@@ -17,5 +17,9 @@ type Session interface {
 }
 
 type Launcher interface {
-	Start(ctx context.Context, size Size) (Session, error)
+	Start(ctx context.Context, name string, size Size) (Session, error)
+}
+
+type Lister interface {
+	List(ctx context.Context) ([]string, error)
 }

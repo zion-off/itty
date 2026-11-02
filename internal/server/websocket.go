@@ -69,7 +69,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := s.Launcher.Start(r.Context(), size)
+	session, err := s.Launcher.Start(r.Context(), s.DefaultSession, size)
 	if err != nil {
 		log.Error("terminal start failed", "error", err)
 		return

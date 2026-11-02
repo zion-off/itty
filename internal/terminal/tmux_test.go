@@ -6,19 +6,20 @@ import (
 	"io"
 	"log/slog"
 	"os/exec"
+	"sort"
 	"sync"
 	"testing"
 	"time"
 )
 
-func newTestLauncher(t *testing.T) TmuxLauncher {
+func newTestLauncher(t *testing.T) (TmuxLauncher, string) {
 	t.Helper()
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux not installed")
 	}
 	name := "itty-test-" + t.Name()
-	t.Cleanup(func() { _ = exec.Command("tmux", "kill-session", "-t", name).Run() })
-	return TmuxLauncher{Session: name, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	t.Cleanup(func() { _ = exec.Command("tmux", "kill-session", "-t", "="+name).Run() })
+	return TmuxLauncher{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}, name
 }
 
 type recorder struct {
@@ -63,8 +64,8 @@ func (r *recorder) sendUntilSeen(t *testing.T, input, want string) {
 }
 
 func TestTmuxSessionPersistsAfterClose(t *testing.T) {
-	l := newTestLauncher(t)
-	s, err := l.Start(context.Background(), Size{Cols: 80, Rows: 24})
+	l, name := newTestLauncher(t)
+	s, err := l.Start(context.Background(), name, Size{Cols: 80, Rows: 24})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,14 +73,14 @@ func TestTmuxSessionPersistsAfterClose(t *testing.T) {
 	rec.sendUntilSeen(t, "echo itty-$((20+22))\r", "itty-42")
 	_ = s.Close()
 	_, _ = s.Wait()
-	if err := exec.Command("tmux", "has-session", "-t", l.Session).Run(); err != nil {
+	if err := exec.Command("tmux", "has-session", "-t", "="+name).Run(); err != nil {
 		t.Fatalf("tmux session should survive detach: %v", err)
 	}
 }
 
 func TestCtrlSReachesTmux(t *testing.T) {
-	l := newTestLauncher(t)
-	s, err := l.Start(context.Background(), Size{Cols: 80, Rows: 24})
+	l, name := newTestLauncher(t)
+	s, err := l.Start(context.Background(), name, Size{Cols: 80, Rows: 24})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,13 +94,42 @@ func TestCtrlSReachesTmux(t *testing.T) {
 }
 
 func TestResize(t *testing.T) {
-	l := newTestLauncher(t)
-	s, err := l.Start(context.Background(), Size{Cols: 80, Rows: 24})
+	l, name := newTestLauncher(t)
+	s, err := l.Start(context.Background(), name, Size{Cols: 80, Rows: 24})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = s.Close(); _, _ = s.Wait() }()
 	if err := s.Resize(Size{Cols: 100, Rows: 30}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestListIncludesRunningSessionsSorted(t *testing.T) {
+	l, name := newTestLauncher(t)
+	s, err := l.Start(context.Background(), name, Size{Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close(); _, _ = s.Wait() }()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		names, err := l.List(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !sort.StringsAreSorted(names) {
+			t.Fatalf("names are not sorted: %v", names)
+		}
+		for _, n := range names {
+			if n == name {
+				return
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("session %q not listed: %v", name, names)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }

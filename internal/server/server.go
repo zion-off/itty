@@ -26,12 +26,13 @@ type CertStatus interface {
 }
 
 type Deps struct {
-	Hostname string
-	Launcher terminal.Launcher
-	Auth     Authenticator
-	Limiter  ratelimit.Limiter
-	Certs    CertStatus
-	Log      *slog.Logger
+	Hostname       string
+	Launcher       terminal.Launcher
+	DefaultSession string
+	Auth           Authenticator
+	Limiter        ratelimit.Limiter
+	Certs          CertStatus
+	Log            *slog.Logger
 }
 
 type Server struct {
