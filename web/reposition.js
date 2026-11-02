@@ -8,7 +8,6 @@ const Reposition = (() => {
     const VELOCITY_WINDOW_MS = 100;
     const MIN_VELOCITY_SAMPLES = 2;
     const MS_PER_SECOND = 1000;
-    const STORAGE_KEY = 'itty.dock.placement';
     const SPRING_DAMPING = 0.72;
     const SPRING_RESPONSE = 0.5;
     const ANCHORS = Object.freeze(Object.values(Anchor));
@@ -61,7 +60,7 @@ const Reposition = (() => {
             }
         },
     });
-    const create = ({ handle, bounds, store, onPosition, createSpring = (options) => Spring.create({ ...Spring.presets.presence, damping: SPRING_DAMPING, response: SPRING_RESPONSE, ...options }), now = Dom.now, log = console.info, }) => {
+    const create = ({ name, handle, bounds, store, onPosition, createSpring = (options) => Spring.create({ ...Spring.presets.presence, damping: SPRING_DAMPING, response: SPRING_RESPONSE, ...options }), now = Dom.now, log = console.info, }) => {
         const springX = createSpring({ value: 0, onUpdate: (value) => onPosition('x', value) });
         const springY = createSpring({ value: 0, onUpdate: (value) => onPosition('y', value) });
         let placement = store.load() || HOME;
@@ -82,7 +81,7 @@ const Reposition = (() => {
             springX.set(origin.x);
             springY.set(origin.y);
             handle.setPointerCapture?.(event.pointerId);
-            log('itty: dock drag started');
+            log(`itty: ${name} drag started`);
             return { press: tracking, limits, origin };
         };
         const follow = ({ press: { start, samples }, limits, origin }, event) => {
@@ -114,7 +113,7 @@ const Reposition = (() => {
             springY.to(target.y, { velocity: velocity.y });
             store.save(placement);
             lastDragEndAt = now();
-            log('itty: dock moved to', placement.anchor, Math.round(placement.y), placement === HOME ? '(home)' : '');
+            log(`itty: ${name} moved to`, placement.anchor, Math.round(placement.y), placement === HOME ? '(home)' : '');
         };
         handle.addEventListener(Dom.event.pointerDown, (event) => {
             if (press || event.isPrimary === false)
@@ -154,7 +153,7 @@ const Reposition = (() => {
             },
         };
     };
-    return { create, createStore, nearestAnchor, resist, ANCHORS, STORAGE_KEY };
+    return { create, createStore, nearestAnchor, resist, ANCHORS };
 })();
 if (typeof module !== 'undefined')
     module.exports = Reposition;

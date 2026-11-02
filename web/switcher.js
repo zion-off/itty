@@ -37,7 +37,7 @@ const Switcher = (() => {
     const PLUS = Dom.icon(STROKE_WIDTH, '<path d="M12 5v14M5 12h14"/>');
     const CLOSE = Dom.icon(STROKE_WIDTH, '<path d="M6 6l12 12M18 6L6 18"/>');
     const keepFocus = (event) => event.preventDefault();
-    const create = ({ root, sessions, send }) => {
+    const create = ({ root, sessions, send, ignoreClick = () => false }) => {
         const pill = Dom.query(root, Selector.pill, HTMLElement);
         const menu = Dom.query(root, Selector.menu, HTMLElement);
         const scrim = Dom.query(root, Selector.scrim, HTMLElement);
@@ -227,7 +227,11 @@ const Switcher = (() => {
             setOpen(!open);
         };
         Press.attach(pill, { scale: PILL_PRESSED_SCALE, onDown: keepFocus });
-        pill.addEventListener(Dom.event.click, toggle);
+        pill.addEventListener(Dom.event.click, () => {
+            if (ignoreClick())
+                return;
+            toggle();
+        });
         scrim.addEventListener(Dom.event.pointerDown, keepFocus);
         scrim.addEventListener(Dom.event.click, () => setOpen(false));
         document.addEventListener(Dom.event.keyDown, (event) => {

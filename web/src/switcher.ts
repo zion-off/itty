@@ -2,6 +2,7 @@ interface SwitcherOptions {
   root: HTMLElement;
   sessions: SessionsInstance;
   send: (message: string) => void;
+  ignoreClick?: () => boolean;
 }
 
 interface SwitcherInstance {
@@ -56,7 +57,7 @@ const Switcher = (() => {
 
   const keepFocus = (event: Event) => event.preventDefault();
 
-  const create = ({ root, sessions, send }: SwitcherOptions): SwitcherInstance => {
+  const create = ({ root, sessions, send, ignoreClick = () => false }: SwitcherOptions): SwitcherInstance => {
     const pill = Dom.query(root, Selector.pill, HTMLElement);
     const menu = Dom.query(root, Selector.menu, HTMLElement);
     const scrim = Dom.query(root, Selector.scrim, HTMLElement);
@@ -261,7 +262,10 @@ const Switcher = (() => {
     };
 
     Press.attach(pill, { scale: PILL_PRESSED_SCALE, onDown: keepFocus });
-    pill.addEventListener(Dom.event.click, toggle);
+    pill.addEventListener(Dom.event.click, () => {
+      if (ignoreClick()) return;
+      toggle();
+    });
     scrim.addEventListener(Dom.event.pointerDown, keepFocus);
     scrim.addEventListener(Dom.event.click, () => setOpen(false));
     document.addEventListener(

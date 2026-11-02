@@ -46,6 +46,7 @@ const setup = ({ stored = null, bounds = BOUNDS } = {}) => {
     let time = 0;
     const store = fakeStore(stored);
     const reposition = Reposition.create({
+        name: 'dock',
         handle,
         bounds: () => bounds,
         store,
@@ -189,6 +190,7 @@ const setup = ({ stored = null, bounds = BOUNDS } = {}) => {
     const listeners = new Map();
     const springs = [];
     const reposition = Reposition.create({
+        name: 'dock',
         handle: { addEventListener: (type, fn) => listeners.set(type, fn) },
         bounds: () => bounds,
         store: fakeStore({ anchor: 'right', y: 0 }),
@@ -220,4 +222,23 @@ const setup = ({ stored = null, bounds = BOUNDS } = {}) => {
     node_assert_1.default.strictEqual(store.load(), null);
     data.set('k', 'not json');
     node_assert_1.default.strictEqual(store.load(), null);
+});
+(0, node_test_1.default)('the logs name the pill that moved', () => {
+    const logs = [];
+    const listeners = new Map();
+    Reposition.create({
+        name: 'switcher',
+        handle: { addEventListener: (type, fn) => listeners.set(type, fn) },
+        bounds: () => BOUNDS,
+        store: fakeStore(),
+        onPosition: () => { },
+        createSpring: (options) => fakeSpring(options),
+        log: (...args) => logs.push(args.join(' ')),
+    });
+    const fire = (type, clientX, clientY) => listeners.get(type)?.({ pointerId: 1, clientX, clientY });
+    fire('pointerdown', 0, 0);
+    fire('pointermove', 60, 0);
+    fire('pointerup', 60, 0);
+    node_assert_1.default.ok(logs.some((line) => line.startsWith('itty: switcher drag started')));
+    node_assert_1.default.ok(logs.some((line) => line.startsWith('itty: switcher moved to')));
 });

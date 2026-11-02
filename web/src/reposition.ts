@@ -43,6 +43,7 @@ type PositionAxis = 'x' | 'y';
 type PlacementSpring = Pick<SpringInstance, 'to' | 'set' | 'value'>;
 
 interface RepositionOptions {
+  name: string;
   handle: DragHandle;
   bounds: () => DragBounds;
   store: PlacementStore;
@@ -53,8 +54,8 @@ interface RepositionOptions {
 }
 
 interface RepositionInstance {
-  ignoreClick(): boolean;
-  refresh(): void;
+  ignoreClick: () => boolean;
+  refresh: () => void;
 }
 
 interface DragSample extends Point {
@@ -82,7 +83,6 @@ const Reposition = (() => {
   const VELOCITY_WINDOW_MS = 100;
   const MIN_VELOCITY_SAMPLES = 2;
   const MS_PER_SECOND = 1000;
-  const STORAGE_KEY = 'itty.dock.placement';
   const SPRING_DAMPING = 0.72;
   const SPRING_RESPONSE = 0.5;
   const ANCHORS: readonly AnchorName[] = Object.freeze(Object.values(Anchor));
@@ -143,6 +143,7 @@ const Reposition = (() => {
   });
 
   const create = ({
+    name,
     handle,
     bounds,
     store,
@@ -175,7 +176,7 @@ const Reposition = (() => {
       springX.set(origin.x);
       springY.set(origin.y);
       handle.setPointerCapture?.(event.pointerId);
-      log('itty: dock drag started');
+      log(`itty: ${name} drag started`);
       return { press: tracking, limits, origin };
     };
 
@@ -208,7 +209,7 @@ const Reposition = (() => {
       springY.to(target.y, { velocity: velocity.y });
       store.save(placement);
       lastDragEndAt = now();
-      log('itty: dock moved to', placement.anchor, Math.round(placement.y), placement === HOME ? '(home)' : '');
+      log(`itty: ${name} moved to`, placement.anchor, Math.round(placement.y), placement === HOME ? '(home)' : '');
     };
 
     handle.addEventListener(Dom.event.pointerDown, (event) => {
@@ -248,7 +249,7 @@ const Reposition = (() => {
     };
   };
 
-  return { create, createStore, nearestAnchor, resist, ANCHORS, STORAGE_KEY };
+  return { create, createStore, nearestAnchor, resist, ANCHORS };
 })();
 
 if (typeof module !== 'undefined') module.exports = Reposition;

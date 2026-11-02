@@ -4,7 +4,6 @@
     const UNLOCK_PRESSED_SCALE = 0.97;
     const DOCK_HANDLE_PRESSED_SCALE = 0.92;
     const SCREEN_SELECTOR = '.xterm-screen';
-    const HALF = 2;
     const Id = Object.freeze({
         app: 'app',
         lock: 'lock',
@@ -16,12 +15,16 @@
         dockHandle: 'dock-handle',
         keys: 'keys',
         switcher: 'switcher',
+        sessionPill: 'session-pill',
+    });
+    const StorageKey = Object.freeze({
+        dockPlacement: 'itty.dock.placement',
+        switcherPlacement: 'itty.switcher.placement',
     });
     const CssVar = Object.freeze({
-        capsuleWidth: '--capsule-w',
-        capsuleHeight: '--capsule-h',
         appHeight: '--app-height',
         dockOffset: (axis) => `--dock-${axis}`,
+        pillOffset: (axis) => `--pill-${axis}`,
     });
     const KeyboardAttr = Object.freeze({ open: 'open', closed: 'closed' });
     const Message = Object.freeze({
@@ -86,25 +89,25 @@
     });
     Press.attach(dockHandle, { scale: DOCK_HANDLE_PRESSED_SCALE });
     const switcherElement = Dom.byId(Id.switcher, HTMLElement);
-    const remPx = (value) => parseFloat(value) * parseFloat(getComputedStyle(document.documentElement).fontSize);
-    function dockBounds() {
-        const style = getComputedStyle(dockElement);
-        const capsuleWidth = remPx(style.getPropertyValue(CssVar.capsuleWidth));
-        const capsuleHeight = remPx(style.getPropertyValue(CssVar.capsuleHeight));
-        const edge = parseFloat(getComputedStyle(switcherElement).paddingLeft);
-        const reach = (app.clientWidth - capsuleWidth) / HALF - edge;
-        const homeTop = app.clientHeight - parseFloat(style.bottom) - capsuleHeight;
-        const topLimit = switcherElement.offsetTop + switcherElement.offsetHeight;
-        return { minX: -reach, maxX: reach, minY: topLimit - homeTop, maxY: 0 };
-    }
-    const reposition = Reposition.create({
+    const sessionPill = Dom.byId(Id.sessionPill, HTMLElement);
+    const pillLayout = PillLayout.create({ area: app, switcher: switcherElement, pill: sessionPill, dock: dockElement });
+    const dockPosition = Reposition.create({
+        name: 'dock',
         handle: dockHandle,
-        bounds: dockBounds,
-        store: Reposition.createStore(localStorage, Reposition.STORAGE_KEY),
+        bounds: pillLayout.dock,
+        store: Reposition.createStore(localStorage, StorageKey.dockPlacement),
         onPosition: (axis, value) => Dom.setVar(dockElement, CssVar.dockOffset(axis), `${value}px`),
     });
+    const switcherPosition = Reposition.create({
+        name: 'switcher',
+        handle: sessionPill,
+        bounds: pillLayout.topPill,
+        store: Reposition.createStore(localStorage, StorageKey.switcherPlacement),
+        onPosition: (axis, value) => Dom.setVar(sessionPill, CssVar.pillOffset(axis), `${value}px`),
+    });
+    new ResizeObserver(switcherPosition.refresh).observe(sessionPill);
     dockHandle.addEventListener(Dom.event.click, () => {
-        if (reposition.ignoreClick())
+        if (dockPosition.ignoreClick())
             return;
         dock.expand();
     });
@@ -117,7 +120,12 @@
     });
     const attempts = Attempts.create({ timeoutMs: UNLOCK_TIMEOUT_MS });
     const sessions = Sessions.create();
-    const switcher = Switcher.create({ root: switcherElement, sessions, send: sendControl });
+    const switcher = Switcher.create({
+        root: switcherElement,
+        sessions,
+        send: sendControl,
+        ignoreClick: switcherPosition.ignoreClick,
+    });
     async function refreshCertWarning() {
         try {
             const res = await fetch('/status', { cache: 'no-store' });
@@ -230,7 +238,8 @@
         const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
         document.documentElement.style.setProperty(CssVar.appHeight, `${height}px`);
         keyboard.refresh();
-        reposition.refresh();
+        dockPosition.refresh();
+        switcherPosition.refresh();
     }
     new ResizeObserver(() => {
         fit.fit();
