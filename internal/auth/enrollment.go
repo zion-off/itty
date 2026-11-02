@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/zion/itty/internal/clock"
+	"github.com/zion/itty/internal/fsutil"
 )
 
 type EnrollmentLinks interface {
@@ -112,7 +113,7 @@ func (l *FileEnrollmentLinks) write(rec enrollmentRecord) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(l.path, raw)
+	return fsutil.WriteFileAtomic(l.path, raw, 0o600)
 }
 
 func hashToken(token string) []byte {

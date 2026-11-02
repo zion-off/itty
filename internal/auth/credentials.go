@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/go-webauthn/webauthn/webauthn"
+
+	"github.com/zion/itty/internal/fsutil"
 )
 
 type CredentialStore interface {
@@ -85,28 +86,5 @@ func (s *FileCredentialStore) write(creds []webauthn.Credential) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(s.path, raw)
-}
-
-func writeFileAtomic(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("create directory %s: %w", dir, err)
-	}
-	tmp, err := os.CreateTemp(dir, ".tmp-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmp.Name(), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
+	return fsutil.WriteFileAtomic(s.path, raw, 0o600)
 }
