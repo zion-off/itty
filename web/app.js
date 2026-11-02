@@ -163,6 +163,7 @@
   }
 
   term.onData((data) => sendText(keyBar.applyCtrl(data)));
+  Dictation.create({ root: term.element, textarea: term.textarea, send: (text) => term.input(text, true) });
   term.onResize(sendResize);
   function fitToViewport() {
     const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
