@@ -107,3 +107,55 @@ test('forget clears the state so a new connection resets the terminal', () => {
   assert.deepStrictEqual(sessions.state(), { current: null, sessions: [], pending: null });
   assert.strictEqual(sessions.receive(sessionsMessage('work', ['work'])).reset, true);
 });
+
+const windowsMessage = (session, windows) => JSON.stringify({ type: 'windows', session, windows });
+const win = (id, index, name, active = false) => ({ id, index, name, active });
+
+const withSessions = () => {
+  const s = Sessions.create();
+  s.receive(JSON.stringify({ type: 'sessions', current: 'a', sessions: ['a', 'b'] }));
+  return s;
+};
+
+test('a windows message is stored per session', () => {
+  const s = withSessions();
+  const update = s.receive(windowsMessage('b', [win('@1', 0, 'zsh', true)]));
+  assert.deepStrictEqual(update, { type: 'windows', session: 'b' });
+  assert.deepStrictEqual(s.windowsOf('b'), [win('@1', 0, 'zsh', true)]);
+  assert.strictEqual(s.windowsOf('a'), null);
+});
+
+test('malformed windows messages are ignored', () => {
+  const s = withSessions();
+  assert.strictEqual(s.receive(windowsMessage('b', [{ id: '@1' }])), null);
+  assert.strictEqual(s.receive(JSON.stringify({ type: 'windows', session: 'b' })), null);
+  assert.strictEqual(s.windowsOf('b'), null);
+});
+
+test('windowsMessage only asks for known sessions', () => {
+  const s = withSessions();
+  assert.deepStrictEqual(JSON.parse(s.windowsMessage('b')), { type: 'windows', session: 'b' });
+  assert.strictEqual(s.windowsMessage('nope'), null);
+});
+
+test('selectMessage needs a known window and marks a session change as pending', () => {
+  const s = withSessions();
+  s.receive(windowsMessage('b', [win('@4', 1, 'logs')]));
+  assert.strictEqual(s.selectMessage('b', '@9'), null);
+  assert.deepStrictEqual(JSON.parse(s.selectMessage('b', '@4')), { type: 'select', session: 'b', window: '@4' });
+  assert.strictEqual(s.state().pending, 'b');
+});
+
+test('selecting a window of the current session is not a pending switch', () => {
+  const s = withSessions();
+  s.receive(windowsMessage('a', [win('@1', 0, 'zsh')]));
+  assert.ok(s.selectMessage('a', '@1'));
+  assert.strictEqual(s.state().pending, null);
+});
+
+test('forget drops the stored windows', () => {
+  const s = withSessions();
+  s.receive(windowsMessage('b', [win('@1', 0, 'zsh')]));
+  s.forget();
+  assert.strictEqual(s.windowsOf('b'), null);
+});
