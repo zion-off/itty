@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -14,12 +15,14 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/zion/itty/internal/auth"
 	"github.com/zion/itty/internal/certs"
 	"github.com/zion/itty/internal/clock"
 	"github.com/zion/itty/internal/config"
 	"github.com/zion/itty/internal/lastsession"
+	"github.com/zion/itty/internal/logging"
 	"github.com/zion/itty/internal/ratelimit"
 	"github.com/zion/itty/internal/server"
 	"github.com/zion/itty/internal/terminal"
@@ -34,7 +37,24 @@ const (
 )
 
 func newServeCommand() *cobra.Command {
-	return newConfigBoundCommand("serve", "Start the server", serve)
+	cmd := &cobra.Command{
+		Use:   "serve",
+		Short: "Start the server",
+		Long:  "Start the server. The log goes to the log file, and also to the terminal when stderr is one.",
+		Args:  usageArgs(cobra.NoArgs),
+	}
+	configPath := addConfigFlag(cmd.Flags())
+	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
+		return runWithConfig(configPath(), serve, terminalLogOptions(cmd.ErrOrStderr())...)
+	}
+	return cmd
+}
+
+func terminalLogOptions(stderr io.Writer) []logging.Option {
+	if f, ok := stderr.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
+		return []logging.Option{logging.WithConsole(f)}
+	}
+	return nil
 }
 
 func serve(cfg config.Config, log *slog.Logger) error {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 )
@@ -125,5 +126,19 @@ func TestConfigSetThroughTheCommandLine(t *testing.T) {
 	got := runCLI(t, "config", "set", "listen", "127.0.0.1:9555", "-c", path)
 	if got.code != exitOK || !strings.Contains(got.stdout, "127.0.0.1:8080 -> 127.0.0.1:9555") {
 		t.Fatalf("code=%d stdout=%q stderr=%q", got.code, got.stdout, got.stderr)
+	}
+}
+
+func TestServeLogsToTheConsoleOnlyWhenStderrIsATerminal(t *testing.T) {
+	if got := terminalLogOptions(&bytes.Buffer{}); len(got) != 0 {
+		t.Fatalf("a buffer is not a terminal, got %d options", len(got))
+	}
+	file, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	if got := terminalLogOptions(file); len(got) != 0 {
+		t.Fatalf("/dev/null is not a terminal, got %d options", len(got))
 	}
 }

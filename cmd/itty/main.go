@@ -43,12 +43,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 type configRunner func(cfg config.Config, log *slog.Logger) error
 
-func runWithConfig(path string, fn configRunner) (err error) {
+func runWithConfig(path string, fn configRunner, logOpts ...logging.Option) (err error) {
 	cfg, err := config.Load(path)
 	if err != nil {
 		return err
 	}
-	log, closeLog, err := logging.New(cfg.LogFile)
+	log, closeLog, err := logging.New(cfg.LogFile, logOpts...)
 	if err != nil {
 		return err
 	}
