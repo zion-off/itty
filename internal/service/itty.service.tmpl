@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 User={{.User}}
 WorkingDirectory={{.WorkingDir}}
-ExecStart="{{.Executable}}" serve -config "{{.ConfigPath}}"
+ExecStart="{{.Executable}}" serve --config "{{.ConfigPath}}"
 Restart=on-failure
 RestartSec=5
 KillMode=process

@@ -9,7 +9,7 @@ import (
 
 var ErrNoInstalledConfig = errors.New("the installed service does not name a config file")
 
-var execStartConfig = regexp.MustCompile(`(?m)^ExecStart=.*\s-config "([^"]+)"`)
+var execStartConfig = regexp.MustCompile(`(?m)^ExecStart=.*\s--config "([^"]+)"`)
 
 func InstalledConfigPath() (string, error) {
 	return ConfigPathFrom(UnitPath)

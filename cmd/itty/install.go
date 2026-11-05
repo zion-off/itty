@@ -1,25 +1,41 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+
 	"github.com/zion/itty/internal/install"
 )
 
-func installCommand(args []string) error {
-	defaultDir, err := install.DefaultDir()
-	if err != nil {
-		return err
+func newInstallCommand() *cobra.Command {
+	var dir string
+	var link bool
+
+	cmd := &cobra.Command{
+		Use:   "install",
+		Short: "Copy this binary to a directory on your PATH",
+		Args:  usageArgs(cobra.NoArgs),
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return installBinary(cmd, dir, link)
+		},
 	}
-	fs := flag.NewFlagSet("itty install", flag.ContinueOnError)
-	dir := fs.String("dir", defaultDir, "directory to install itty into")
-	link := fs.Bool("link", false, "link to this binary instead of copying it, so rebuilding updates the installed command")
-	if err := fs.Parse(args); err != nil {
-		return err
+	flags := cmd.Flags()
+	flags.StringVarP(&dir, "dir", "d", "", "directory to install itty into (default: ~/.local/bin)")
+	flags.BoolVarP(&link, "link", "l", false, "link to this binary instead of copying it, so rebuilding updates the installed command")
+	return cmd
+}
+
+func installBinary(cmd *cobra.Command, dir string, link bool) error {
+	if dir == "" {
+		defaultDir, err := install.DefaultDir()
+		if err != nil {
+			return err
+		}
+		dir = defaultDir
 	}
 
 	source, err := os.Executable()
@@ -30,19 +46,20 @@ func installCommand(args []string) error {
 		return fmt.Errorf("resolve the itty binary path: %w", err)
 	}
 
-	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	log := slog.New(slog.NewTextHandler(cmd.ErrOrStderr(), &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	result, err := install.Installer{PathEnv: os.Getenv("PATH"), Log: log}.Install(install.Options{Source: source, Dir: *dir, Link: *link})
+	result, err := install.Installer{PathEnv: os.Getenv("PATH"), Log: log}.Install(install.Options{Source: source, Dir: dir, Link: link})
 	if err != nil {
 		return err
 	}
+	out := cmd.OutOrStdout()
 	if result.Unchanged {
-		fmt.Printf("%s is already this binary.\n", result.Target)
+		fmt.Fprintf(out, "%s is already this binary.\n", result.Target)
 	} else {
-		fmt.Printf("Installed %s\n", result.Target)
+		fmt.Fprintf(out, "Installed %s\n", result.Target)
 	}
 	if !result.OnPath {
-		fmt.Printf("\n%s is not on your PATH. Add this line to your shell startup file (~/.bashrc or ~/.zshrc):\n\n  export PATH=\"%s:$PATH\"\n", *dir, *dir)
+		fmt.Fprintf(out, "\n%s is not on your PATH. Add this line to your shell startup file (~/.bashrc or ~/.zshrc):\n\n  export PATH=\"%s:$PATH\"\n", dir, dir)
 	}
 	return nil
 }

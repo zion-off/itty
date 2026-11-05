@@ -122,7 +122,7 @@ func TestIssueAndRenewAgainstATestCA(t *testing.T) {
 
 	_, err := newIssuer(t, accounts, false).Issue(context.Background(), host, challtestDNS{})
 	if !errors.Is(err, ErrTermsNotAccepted) {
-		t.Fatalf("first run without -accept-tos: err = %v", err)
+		t.Fatalf("first run without --accept-tos: err = %v", err)
 	}
 
 	renewer := Renewer{

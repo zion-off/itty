@@ -1,6 +1,6 @@
 # itty
 
-itty is a web terminal for one person and one tmux session. It runs as a single Go program on a VM and serves a web app that you add to your phone's home screen. Every time the app comes to the foreground, it asks for a passkey check, such as FaceID.
+itty is a private web terminal for your phone: one person, one tmux session, unlocked with a passkey. It runs as a single Go program on a VM and serves a web app that you add to your phone's home screen. Every time the app comes to the foreground, it asks for a passkey check, such as FaceID.
 
 itty is for a VM that is reachable only over a private network such as a VPN. It does not support exposing the server to the internet. Read `docs/threat-model.md` before you install it, because a successful login is a shell as the user that runs itty.
 
@@ -23,8 +23,8 @@ itty enroll
 itty serve
 ```
 
-1. **`itty install`** copies the binary to `~/.local/bin` so that `itty` works from any directory. Use `-dir` to choose another directory, for example `-dir /usr/local/bin` with `sudo`. Use `-link` to link to `bin/itty` instead of copying, so that a rebuild updates the installed command. If the directory is not on your `PATH`, the command prints the `export PATH=...` line to add to your shell startup file, and it does not edit that file itself. Running it again replaces the installed binary with the one you ran.
-2. **`itty init`** asks for the hostname, the listen address and the certificate paths, and writes `itty.toml`. You can pass them as flags instead, for example `itty init -hostname itty.example.com -listen 10.0.0.5:9444 -tls-cert certs/fullchain.pem -tls-key certs/privkey.pem`. It refuses to overwrite an existing file unless you pass `-force`.
+1. **`itty install`** copies the binary to `~/.local/bin` so that `itty` works from any directory. Use `--dir` to choose another directory, for example `--dir /usr/local/bin` with `sudo`. Use `--link` to link to `bin/itty` instead of copying, so that a rebuild updates the installed command. If the directory is not on your `PATH`, the command prints the `export PATH=...` line to add to your shell startup file, and it does not edit that file itself. Running it again replaces the installed binary with the one you ran.
+2. **`itty init`** asks for the hostname, the listen address and the certificate paths, and writes `itty.toml`. You can pass them as flags instead, for example `itty init --hostname itty.example.com --listen 10.0.0.5:9444 --tls-cert certs/fullchain.pem --tls-key certs/privkey.pem`. It refuses to overwrite an existing file unless you pass `--force`.
 3. **`itty check`** verifies the setup before you start. It looks for tmux, a writable data directory, a listen address that belongs to this machine and is free, a certificate that covers the hostname and is not close to expiry, the key file permissions, and a DNS record that matches the listen address. It exits with an error if a check fails.
 4. **`itty enroll`** prints a one-time link that expires after 10 minutes. Open it on the phone to register a passkey. Run it again from a shell on the VM to enroll another passkey or to recover from a lost phone.
 5. **`itty serve`** starts the server. Start it outside tmux, or use `env -u TMUX itty serve`, because tmux refuses to create a nested session.
@@ -53,17 +53,17 @@ itty status
 itty restart
 itty stop
 itty start
-itty stop -kill-session
+itty stop --kill-session
 itty service disable
 itty service uninstall
 ```
 
 - `itty start`, `itty stop`, `itty restart` and `itty status` are shortcuts for `itty service start`, `stop`, `restart` and `status`. `itty service` also has `enable` and `disable`, which control whether itty starts at boot.
-- `stop` leaves the tmux session running. Add `-kill-session` to end the session too.
+- `stop` leaves the tmux session running. Add `--kill-session` to end the session too.
 - `uninstall` stops and disables the service and removes the unit file.
 - After you rebuild the binary, run `itty restart`. If you moved the binary or the config file, run `itty service install` again.
 
-Every command finds the config file the same way, so they work from any directory. The order is the `-config` flag, then the `ITTY_CONFIG` environment variable, then `itty.toml` in the current directory, then the config file that the installed service uses.
+Every command finds the config file the same way, so they work from any directory. The order is the `--config` flag (short form `-c`), then the `ITTY_CONFIG` environment variable, then `itty.toml` in the current directory, then the config file that the installed service uses.
 
 The unit sets `KillMode=process`. Without it, systemd would also kill the tmux server when itty stops or restarts, because tmux starts inside the service, and that would end your session and everything running in it. The unit has no sandboxing options on purpose, because the shell that a login opens must have the same access as you do. Only systemd on Linux is supported.
 
@@ -71,12 +71,12 @@ The unit sets `KillMode=process`. Without it, systemd would also kill the tmux s
 
 itty reads the certificate and key from files and reloads them when they change, so renewing needs no restart. `itty renew-cert` gets and renews the certificate with a Let's Encrypt DNS-01 challenge.
 
-1. Set `acme_email` in `itty.toml`, or pass `-acme-email` to `itty init`.
-2. Run `itty renew-cert -accept-tos`. The `-accept-tos` flag accepts the Let's Encrypt terms of service when the account is created, and you need it only the first time.
+1. Set `acme_email` in `itty.toml`, or pass `--acme-email` to `itty init`.
+2. Run `itty renew-cert --accept-tos`. The `--accept-tos` flag accepts the Let's Encrypt terms of service when the account is created, and you need it only the first time.
 3. The command prints a TXT record. Add it in your DNS dashboard, wait a minute, and press Enter.
 4. The command writes the certificate and key to `tls_cert_file` and `tls_key_file`, both with mode 600, and reminds you to delete the TXT record.
 
-The command renews only when 30 days or fewer remain, so you can run it as often as you like. Pass `-force` to renew anyway. Let's Encrypt certificates last 90 days, and the server logs the days remaining at startup and once a day.
+The command renews only when 30 days or fewer remain, so you can run it as often as you like. Pass `--force` (or `-f`) to renew anyway. Let's Encrypt certificates last 90 days, and the server logs the days remaining at startup and once a day.
 
 The default `manual` provider stores no DNS credentials on the VM, but it needs you to add the record each time. To renew without you, the project needs a provider for your DNS service. A provider is a Go package that publishes and removes one TXT record, plus one line in `cmd/itty/renew.go` that lists it. Contributions are welcome.
 

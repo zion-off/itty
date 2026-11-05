@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -51,21 +50,5 @@ func TestResolveConfigPathFallsBackToTheDefaultName(t *testing.T) {
 	inEmptyDir(t)
 	if got := resolveConfigPath(""); got != defaultConfigPath {
 		t.Fatalf("got %q", got)
-	}
-}
-
-func TestServiceAliasesAreRegistered(t *testing.T) {
-	for _, name := range []string{"start", "stop", "restart", "status"} {
-		if _, ok := commands[name]; !ok {
-			t.Errorf("command %q is not registered", name)
-		}
-	}
-}
-
-func TestServiceAliasRejectsKillSessionOutsideStop(t *testing.T) {
-	withInstalled(t, filepath.Join(t.TempDir(), "itty.toml"), nil)
-	inEmptyDir(t)
-	if err := commands["start"]([]string{"-kill-session"}); err == nil {
-		t.Fatal("-kill-session only applies to stop")
 	}
 }

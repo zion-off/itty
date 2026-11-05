@@ -2,12 +2,10 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
-	"sort"
-	"strings"
 
 	"github.com/zion/itty/internal/config"
 	"github.com/zion/itty/internal/logging"
@@ -15,69 +13,37 @@ import (
 
 const defaultConfigPath = "itty.toml"
 
-type command func(args []string) error
-
-var commands = map[string]command{
-	"init":       initCommand,
-	"install":    installCommand,
-	"check":      withConfig("check", check),
-	"config":     configCommand,
-	"enroll":     withConfig("enroll", enroll),
-	"renew-cert": renewCommand,
-	"service":    serviceCommand,
-	"start":      serviceAlias("start"),
-	"stop":       serviceAlias("stop"),
-	"restart":    serviceAlias("restart"),
-	"status":     serviceAlias("status"),
-	"serve":      withConfig("serve", serve),
-}
+const (
+	exitOK      = 0
+	exitFailure = 1
+	exitUsage   = 2
+)
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "itty:", err)
-		os.Exit(1)
-	}
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
-func run(args []string) error {
-	name := "serve"
-	if len(args) > 0 && args[0] != "" && args[0][0] != '-' {
-		name, args = args[0], args[1:]
+func run(args []string, stdout, stderr io.Writer) int {
+	root := newRootCommand()
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.SetArgs(args)
+
+	cmd, err := root.ExecuteC()
+	if err == nil {
+		return exitOK
 	}
-	cmd, ok := commands[name]
-	if !ok {
-		return fmt.Errorf("unknown command %q (available: %s)", name, strings.Join(commandNames(), ", "))
+	fmt.Fprintln(stderr, "itty:", err)
+	if errors.As(err, new(usageError)) {
+		fmt.Fprintf(stderr, "Try '%s --help' for more information.\n", cmd.CommandPath())
+		return exitUsage
 	}
-	return cmd(args)
+	return exitFailure
 }
 
-func serviceAlias(action string) command {
-	return func(args []string) error {
-		return serviceCommand(append([]string{action}, args...))
-	}
-}
+type configRunner func(cfg config.Config, log *slog.Logger) error
 
-func commandNames() []string {
-	names := make([]string, 0, len(commands))
-	for n := range commands {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func withConfig(name string, fn func(cfg config.Config, log *slog.Logger) error) command {
-	return func(args []string) error {
-		fs := flag.NewFlagSet("itty "+name, flag.ContinueOnError)
-		configPath := configPathFlag(fs)
-		if err := fs.Parse(args); err != nil {
-			return err
-		}
-		return runWithConfig(configPath(), fn)
-	}
-}
-
-func runWithConfig(path string, fn func(cfg config.Config, log *slog.Logger) error) (err error) {
+func runWithConfig(path string, fn configRunner) (err error) {
 	cfg, err := config.Load(path)
 	if err != nil {
 		return err

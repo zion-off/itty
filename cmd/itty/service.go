@@ -2,42 +2,75 @@ package main
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"slices"
 	"syscall"
+
+	"github.com/spf13/cobra"
 
 	"github.com/zion/itty/internal/config"
 	"github.com/zion/itty/internal/service"
 )
 
-const serviceUsage = "usage: itty service <install|uninstall|start|stop|restart|enable|disable|status> [-config path] [-kill-session]"
+type serviceAction struct {
+	name  string
+	short string
+}
 
-func serviceCommand(args []string) error {
-	if len(args) == 0 || args[0] == "" || args[0][0] == '-' {
-		return errors.New(serviceUsage)
-	}
-	action := args[0]
+var serviceActions = []serviceAction{
+	{"install", "Install, enable and start the systemd service"},
+	{"uninstall", "Stop and disable the service and remove its unit file"},
+	{"start", "Start the service"},
+	{"stop", "Stop the service"},
+	{"restart", "Restart the service"},
+	{"enable", "Start the service at boot"},
+	{"disable", "Do not start the service at boot"},
+	{"status", "Show the service status"},
+}
 
-	fs := flag.NewFlagSet("itty service "+action, flag.ContinueOnError)
-	configPath := configPathFlag(fs)
-	killSession := fs.Bool("kill-session", false, "with stop: also end the tmux session")
-	if err := fs.Parse(args[1:]); err != nil {
-		return err
-	}
-	if *killSession && action != "stop" {
-		return errors.New("-kill-session only applies to stop")
-	}
+var serviceShortcutNames = []string{"start", "stop", "restart", "status"}
 
-	path := configPath()
-	return runWithConfig(path, func(cfg config.Config, log *slog.Logger) error {
-		return runService(cfg, log, action, path, *killSession)
-	})
+func newServiceCommand() *cobra.Command {
+	group := newGroupCommand("service", "Install and control the itty systemd service")
+	for _, action := range serviceActions {
+		group.AddCommand(newServiceActionCommand(action.name, action.short))
+	}
+	return group
+}
+
+func newServiceShortcuts() []*cobra.Command {
+	shortcuts := make([]*cobra.Command, 0, len(serviceShortcutNames))
+	for _, action := range serviceActions {
+		if slices.Contains(serviceShortcutNames, action.name) {
+			shortcuts = append(shortcuts, newServiceActionCommand(action.name, action.short+" (shortcut for 'itty service "+action.name+"')"))
+		}
+	}
+	return shortcuts
+}
+
+func newServiceActionCommand(action, short string) *cobra.Command {
+	var killSession bool
+	cmd := &cobra.Command{
+		Use:   action,
+		Short: short,
+		Args:  usageArgs(cobra.NoArgs),
+	}
+	configPath := addConfigFlag(cmd.Flags())
+	if action == "stop" {
+		cmd.Flags().BoolVar(&killSession, "kill-session", false, "also end the tmux session")
+	}
+	cmd.RunE = func(*cobra.Command, []string) error {
+		path := configPath()
+		return runWithConfig(path, func(cfg config.Config, log *slog.Logger) error {
+			return runService(cfg, log, action, path, killSession)
+		})
+	}
+	return cmd
 }
 
 func runService(cfg config.Config, log *slog.Logger, action, configPath string, killSession bool) error {

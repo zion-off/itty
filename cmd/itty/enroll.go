@@ -5,12 +5,18 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/zion/itty/internal/auth"
 	"github.com/zion/itty/internal/clock"
 	"github.com/zion/itty/internal/config"
 )
 
 const enrollmentLinkLifetime = 10 * time.Minute
+
+func newEnrollCommand() *cobra.Command {
+	return newConfigBoundCommand("enroll", "Print a one-time link that registers a passkey", enroll)
+}
 
 func enroll(cfg config.Config, log *slog.Logger) error {
 	links := auth.NewFileEnrollmentLinks(cfg.EnrollmentPath(), clock.System{}, log)

@@ -16,7 +16,7 @@ import (
 	"github.com/zion/itty/internal/dns"
 )
 
-var ErrTermsNotAccepted = errors.New("no ACME account exists yet; pass -accept-tos to accept the certificate authority's terms of service")
+var ErrTermsNotAccepted = errors.New("no ACME account exists yet; pass --accept-tos to accept the certificate authority's terms of service")
 
 type Bundle struct {
 	CertPEM []byte

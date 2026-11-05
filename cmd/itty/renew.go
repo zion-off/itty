@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	legolog "github.com/go-acme/lego/v4/log"
+	"github.com/spf13/cobra"
 
 	"github.com/zion/itty/internal/acme"
 	"github.com/zion/itty/internal/clock"
@@ -26,17 +26,23 @@ var dnsProviders = map[string]dns.Factory{
 	"manual": manual.New,
 }
 
-func renewCommand(args []string) error {
-	fs := flag.NewFlagSet("itty renew-cert", flag.ContinueOnError)
-	configPath := configPathFlag(fs)
-	force := fs.Bool("force", false, "request a new certificate even if the current one is not close to expiry")
-	acceptTOS := fs.Bool("accept-tos", false, "accept the certificate authority's terms of service when creating the ACME account")
-	if err := fs.Parse(args); err != nil {
-		return err
+func newRenewCertCommand() *cobra.Command {
+	var force, acceptTOS bool
+
+	cmd := &cobra.Command{
+		Use:   "renew-cert",
+		Short: "Get or renew the TLS certificate with a Let's Encrypt DNS-01 challenge",
+		Args:  usageArgs(cobra.NoArgs),
 	}
-	return runWithConfig(configPath(), func(cfg config.Config, log *slog.Logger) error {
-		return renewCert(cfg, log, *force, *acceptTOS)
-	})
+	configPath := addConfigFlag(cmd.Flags())
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "request a new certificate even if the current one is not close to expiry")
+	cmd.Flags().BoolVar(&acceptTOS, "accept-tos", false, "accept the certificate authority's terms of service when creating the ACME account")
+	cmd.RunE = func(*cobra.Command, []string) error {
+		return runWithConfig(configPath(), func(cfg config.Config, log *slog.Logger) error {
+			return renewCert(cfg, log, force, acceptTOS)
+		})
+	}
+	return cmd
 }
 
 func renewCert(cfg config.Config, log *slog.Logger, force, acceptTOS bool) error {
@@ -83,7 +89,7 @@ func renewCert(cfg config.Config, log *slog.Logger, force, acceptTOS bool) error
 		return err
 	}
 	if !result.Renewed {
-		fmt.Printf("Certificate is valid until %s and is not due for renewal. Use -force to renew anyway.\n", result.NotAfter.Format(time.DateOnly))
+		fmt.Printf("Certificate is valid until %s and is not due for renewal. Use --force to renew anyway.\n", result.NotAfter.Format(time.DateOnly))
 		return nil
 	}
 	fmt.Printf("\nCertificate installed and valid until %s. A running server loads it without a restart.\n", result.NotAfter.Format(time.DateOnly))

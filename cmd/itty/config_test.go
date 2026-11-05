@@ -2,10 +2,8 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -23,21 +21,6 @@ func writeConfig(t *testing.T, body string) (string, config.Config) {
 		t.Fatal(err)
 	}
 	return path, cfg
-}
-
-func TestParseInterspersedAcceptsFlagsAnywhere(t *testing.T) {
-	for _, args := range [][]string{
-		{"set", "listen", "1.2.3.4:5", "-config", "x.toml"},
-		{"-config", "x.toml", "set", "listen", "1.2.3.4:5"},
-		{"set", "-config", "x.toml", "listen", "1.2.3.4:5"},
-	} {
-		fs := flag.NewFlagSet("t", flag.ContinueOnError)
-		path := fs.String("config", "", "")
-		words, err := parseInterspersed(fs, args)
-		if err != nil || *path != "x.toml" || !reflect.DeepEqual(words, []string{"set", "listen", "1.2.3.4:5"}) {
-			t.Fatalf("args %v: words=%v path=%q err=%v", args, words, *path, err)
-		}
-	}
 }
 
 func TestConfigSetChangesThePortAndReportsTheChange(t *testing.T) {

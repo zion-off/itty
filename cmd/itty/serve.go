@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/zion/itty/internal/auth"
 	"github.com/zion/itty/internal/certs"
 	"github.com/zion/itty/internal/clock"
@@ -30,6 +32,10 @@ const (
 	readHeaderTimout  = 10 * time.Second
 	expiryLogInterval = 24 * time.Hour
 )
+
+func newServeCommand() *cobra.Command {
+	return newConfigBoundCommand("serve", "Start the server", serve)
+}
 
 func serve(cfg config.Config, log *slog.Logger) error {
 	host, _, err := net.SplitHostPort(cfg.Listen)

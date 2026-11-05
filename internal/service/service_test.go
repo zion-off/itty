@@ -38,7 +38,7 @@ func TestRenderFillsInThePathsAndKeepsTheSessionAlive(t *testing.T) {
 	for _, want := range []string{
 		"User=alex",
 		"WorkingDirectory=/srv/itty dir",
-		`ExecStart="/srv/itty dir/bin/itty" serve -config "/srv/itty dir/itty.toml"`,
+		`ExecStart="/srv/itty dir/bin/itty" serve --config "/srv/itty dir/itty.toml"`,
 		"KillMode=process",
 		"Restart=on-failure",
 	} {

@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/spf13/cobra"
+
 	"github.com/zion/itty/internal/clock"
 	"github.com/zion/itty/internal/config"
 	"github.com/zion/itty/internal/setup"
 )
+
+func newCheckCommand() *cobra.Command {
+	return newConfigBoundCommand("check", "Verify the setup before starting the server", check)
+}
 
 func check(cfg config.Config, log *slog.Logger) error {
 	results := setup.Checker{Config: cfg, Clock: clock.System{}}.Run()

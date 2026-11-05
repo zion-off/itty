@@ -1,16 +1,18 @@
 package main
 
 import (
-	"flag"
 	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/zion/itty/internal/service"
 )
 
 var installedConfigPath = service.InstalledConfigPath
 
-func configPathFlag(fs *flag.FlagSet) func() string {
-	value := fs.String("config", "", "path to the configuration file (default: ITTY_CONFIG, then ./itty.toml, then the installed service's config)")
+func addConfigFlag(flags *pflag.FlagSet) func() string {
+	value := flags.StringP("config", "c", "", "path to the configuration file (default: $ITTY_CONFIG, then ./itty.toml, then the installed service's config)")
 	return func() string { return resolveConfigPath(*value) }
 }
 
@@ -28,4 +30,15 @@ func resolveConfigPath(explicit string) string {
 		return installed
 	}
 	return defaultConfigPath
+}
+
+func newConfigBoundCommand(use, short string, fn configRunner) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   use,
+		Short: short,
+		Args:  usageArgs(cobra.NoArgs),
+	}
+	configPath := addConfigFlag(cmd.Flags())
+	cmd.RunE = func(*cobra.Command, []string) error { return runWithConfig(configPath(), fn) }
+	return cmd
 }
