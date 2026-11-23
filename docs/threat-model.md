@@ -21,6 +21,9 @@ A successful login attaches to the operator's tmux session, which runs as the op
 | A flaw in the code that runs before login | The server exposes few endpoints before login and keeps their code small. This lowers the risk and cannot remove it. |
 | Someone picks up the unlocked phone | Every foreground and every reconnect needs FaceID, and the lock screen hides the terminal until then. |
 | The certificate expires | The server logs the days remaining, the lock screen warns when expiry is near, and `itty renew-cert` renews it. |
+| A person registers their own device for notifications | A subscription is accepted only over a websocket, which needs a passkey login. No endpoint before login accepts one. |
+| A person reads notifications in transit | Each message is encrypted for the subscribing browser, so the push service and the network see only ciphertext. |
+| A person sends notifications to the phone | Sending needs the private VAPID key and the subscriptions, which are files with mode 0600 in the data directory. |
 | A stolen DNS provider credential | The manual provider stores none, because the operator adds the DNS record by hand. A provider that uses an API needs a credential on the VM, so the operator should limit it to editing DNS records for the one zone. |
 
 ## Network exposure
@@ -37,6 +40,9 @@ If the server were reachable from the internet, the passkey and the pre-login co
 - The terminal session has the operator's full privileges. The design limits what the phone can start, but it does not limit what a logged-in person can do inside tmux. A logged-in person can also switch to any other tmux session of that user, which adds no new access, because every session runs with the same privileges.
 - Anyone who gets a shell on the VM can enroll a passkey. That person already has access to the operator's user, so enrollment does not add a new exposure.
 - The iOS app switcher can show a snapshot of the last screen. The first version does not guard against this.
+- iOS shows notification text on the lock screen without FaceID. The operator chooses what `itty notify` sends and should keep secrets out of it.
+- Anyone who can read the data directory can send notifications to the operator's phones. That person already has access to the operator's user.
+- Sending a notification makes an outbound HTTPS request from the VM to the push service, such as Apple's. The push service learns when notifications are sent and to which device, but not their content.
 
 ## Not covered
 

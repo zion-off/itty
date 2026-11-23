@@ -31,6 +31,22 @@ itty serve
 
 Add the page to your home screen from the browser's share menu.
 
+## Notifications
+
+`itty notify` sends a notification to every phone that turned notifications on.
+
+```
+itty notify Build finished
+itty notify --title deploy "Rolled out to prod"
+make test; itty notify "tests exited with $?"
+```
+
+To turn notifications on, open itty from the home screen, tap the session pill at the top and turn on the notifications switch below the session list. iOS then asks for permission. Notifications work only in the home-screen app, not in a Safari tab, and need iOS 16.4 or later. To turn them off, use the same switch. If you declined the permission prompt, allow itty again in Settings, Notifications.
+
+The command sends the message through the phone's push service, which is Apple's for an iPhone. It does not need `itty serve` to be running, and the phone does not need to be on the private network to receive the notification. Opening itty from the notification still needs the private network. The VM needs outbound HTTPS access to the push service, `web.push.apple.com` for an iPhone. The message is encrypted end to end, so the push service cannot read it, but iOS shows it on the lock screen without FaceID, so keep secrets out of it.
+
+The first use creates a key pair in `data/push-vapid.json`. The subscriptions of the phones are stored in `data/push-subscriptions.json`. When the push service reports that a subscription no longer exists, `itty notify` removes it. If you delete the key pair, every phone must turn notifications on again.
+
 ## Change a setting
 
 `itty config` reads and changes settings without editing the file by hand.

@@ -22,7 +22,7 @@ The itty server is a Go program that runs on the VM as the operator's own user. 
 
 The web client is plain HTML and JavaScript with xterm.js. The itty server serves it, and the operator installs it as a home-screen web app (PWA). It has no build step.
 
-The itty server also provides two command-line commands, `itty enroll` and `itty renew-cert`, which the operator runs on the VM.
+The itty server also provides command-line commands that the operator runs on the VM, such as `itty enroll`, `itty renew-cert` and `itty notify`.
 
 A configuration file holds everything that differs between installs. This is the hostname, the address and port to listen on, the tmux session name, the certificate mode and file paths, the data directory and the log file location. The file is TOML.
 
@@ -114,6 +114,21 @@ The client sends its terminal size when it connects and whenever the size change
 
 The pty must have XON/XOFF flow control turned off. Some operators use Ctrl+s as their tmux prefix, which is also the traditional pause key, and it must reach tmux unchanged.
 
+## Notifications
+
+The operator can send a notification to the phone with `itty notify`. Delivery uses Web Push, which iOS supports for home-screen web apps from iOS 16.4.
+
+1. After login, the client asks the server for its public VAPID key over the websocket. VAPID is the key pair that identifies the sender to the push service. The server creates the key pair the first time it is needed and stores it in the data directory with mode 0600.
+2. When the operator turns on the notifications switch in the session menu, the browser asks for permission and creates a subscription with the push service. The subscription is an endpoint URL and the keys that encrypt messages for this browser. The client sends it to the server over the websocket, and the server stores it in the data directory.
+3. `itty notify` reads the key pair and the subscriptions, encrypts the message for each subscription and posts it to the endpoint. The push service delivers it to the phone, and the service worker of the web app shows it.
+4. When the operator taps the notification, the service worker focuses or opens the web app, which shows the lock screen.
+
+The subscription travels over the websocket because the websocket is the only channel that requires a login. The design adds no endpoint before login. `itty notify` talks to the push service directly, so it works while the server is stopped.
+
+On every login the client sends its current subscription again, so the server recovers from a lost subscriptions file. A subscription created for a different public key is removed and the switch shows off. Turning the switch off removes the subscription in the browser first and then on the server, so a failure on the server cannot turn notifications back on at the next login. The server keeps at most 10 subscriptions and drops the oldest. When the push service answers 404 or 410 for a subscription, `itty notify` removes it.
+
+The service worker handles only the push and notification click events. It has no fetch handler, so it does not cache or change how the app loads.
+
 ## Extension points
 
 itty follows the SOLID principles from the start. Each part of the program that is expected to vary sits behind a small interface. The code that uses a part depends on the interface and not on a concrete implementation, and one place at startup connects the concrete parts. Adding a variant means adding an implementation, and it does not change existing code.
@@ -126,6 +141,7 @@ These parts sit behind interfaces:
 - The store for one-time values, which holds challenges, tickets and enrollment links until they are used or expire. The first implementation is in memory.
 - The terminal launcher, which starts the process behind a websocket. The first implementation runs `tmux attach` on a pty, and tests can use a fake one.
 - The clock, so that tests can check expiry without waiting.
+- The push key store, the subscription store and the sender that posts a notification to the push service. The first implementations are local files and Web Push.
 
 Each interface has only the operations that its callers need, so an implementation is never forced to provide something it does not use. An implementation must work anywhere the interface is used. For example, every DNS provider must accept the same publish and remove calls and report failure in the same way.
 
@@ -147,7 +163,7 @@ A hardware keyboard works without the key bar, because xterm.js passes its keyst
 
 ### Session and window menu
 
-The pill at the top of the screen shows the current session. It floats over the terminal and reserves no space. The operator can drag it in the same way as the key capsule, and it snaps back to the top centre when it lands close to it. The two pills never overlap, because the top pill stops above the key capsule and the key capsule stops below the top pill. Tapping it opens a menu with two levels. The first level lists the sessions. Tapping a session name switches to it, and tapping the arrow at the end of the row opens the second level, which lists the windows of that session with a check mark on the active one. Tapping a window selects it and switches to its session if needed. Each window row has a close button, which is hidden when the session has only one window, and the list ends with a row that creates a new window. Creating a window closes the menu so that the new window is on screen, and closing a window keeps the menu open with the refreshed list. The back row returns to the sessions.
+The pill at the top of the screen shows the current session. It floats over the terminal and reserves no space. The operator can drag it in the same way as the key capsule, and it snaps back to the top centre when it lands close to it. The two pills never overlap, because the top pill stops above the key capsule and the key capsule stops below the top pill. Tapping it opens a menu with two levels. The first level lists the sessions. Tapping a session name switches to it, and tapping the arrow at the end of the row opens the second level, which lists the windows of that session with a check mark on the active one. Tapping a window selects it and switches to its session if needed. Each window row has a close button, which is hidden when the session has only one window, and the list ends with a row that creates a new window. Creating a window closes the menu so that the new window is on screen, and closing a window keeps the menu open with the refreshed list. The back row returns to the sessions. Its menu ends with a divider and the notifications switch, which is described in Notifications above. Outside the home-screen app, or when the operator has blocked notifications, the switch is disabled and a line below it says why.
 
 ### Touch layer
 
@@ -173,8 +189,10 @@ The server logs these events:
 - Terminal process start and exit, with the exit status.
 - Certificate load and reload, and the days until expiry.
 - Each step of `itty renew-cert`.
+- Push key creation, and each subscription that is saved, refreshed, removed or rejected.
+- Each notification sent by `itty notify`, with the result for each subscription.
 
-The server never logs ticket values, challenge values or terminal input and output.
+The server never logs ticket values, challenge values, push subscription endpoints or keys, notification text or terminal input and output. A subscription appears in the log as a short hash of its endpoint and the host of its push service.
 
 ## Open questions
 
@@ -196,4 +214,4 @@ The server never logs ticket values, challenge values or terminal input and outp
 
 ## Websocket messages
 
-Binary frames carry terminal data in both directions. Text frames carry JSON control messages. The client sends `{"type":"resize","cols":N,"rows":N}` as its first message and again whenever the size changes. The server sends `{"type":"sessions","current":"work","sessions":["itty","work"]}` after it attaches, after every switch and in reply to a list request, and it sends it before the first output of the new session. The client asks for a change with `{"type":"switch","session":"work"}` and for a fresh list with `{"type":"list"}`. The client asks for the windows of a session with `{"type":"windows","session":"work"}`, and the server replies with `{"type":"windows","session":"work","windows":[{"id":"@1","index":0,"name":"zsh","active":true}]}`. The client selects a window with `{"type":"select","session":"work","window":"@1"}`. The client creates a window with `{"type":"new_window","session":"work"}` and closes one with `{"type":"close_window","session":"work","window":"@1"}`. The server answers a successful close, and a successful creation in the current session, with a fresh `windows` message. A creation in another session switches to it, which sends a `sessions` message. The server answers a rejected request with `{"type":"error","message":"unknown session"}` and stays in the current session. The websocket URL carries the ticket in the `ticket` query parameter, and the server never logs URLs.
+Binary frames carry terminal data in both directions. Text frames carry JSON control messages. The client sends `{"type":"resize","cols":N,"rows":N}` as its first message and again whenever the size changes. The server sends `{"type":"sessions","current":"work","sessions":["itty","work"]}` after it attaches, after every switch and in reply to a list request, and it sends it before the first output of the new session. The client asks for a change with `{"type":"switch","session":"work"}` and for a fresh list with `{"type":"list"}`. The client asks for the windows of a session with `{"type":"windows","session":"work"}`, and the server replies with `{"type":"windows","session":"work","windows":[{"id":"@1","index":0,"name":"zsh","active":true}]}`. The client selects a window with `{"type":"select","session":"work","window":"@1"}`. The client creates a window with `{"type":"new_window","session":"work"}` and closes one with `{"type":"close_window","session":"work","window":"@1"}`. The server answers a successful close, and a successful creation in the current session, with a fresh `windows` message. A creation in another session switches to it, which sends a `sessions` message. The server answers a rejected request with `{"type":"error","message":"unknown session"}` and stays in the current session. The websocket URL carries the ticket in the `ticket` query parameter, and the server never logs URLs. The client asks for the push public key with `{"type":"push_key"}`, and the server replies with `{"type":"push_key","key":"..."}`. The client sends a subscription with `{"type":"push_subscribe","subscription":{"endpoint":"https://...","keys":{"p256dh":"...","auth":"..."}}}` and removes one with `{"type":"push_unsubscribe","endpoint":"https://..."}`. The server answers both, and a failure to load the key, with `{"type":"push","subscribed":true}` or `{"type":"push","subscribed":false}`, and adds an `error` field with a short message when it rejects the request.
