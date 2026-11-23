@@ -24,7 +24,6 @@ interface PasskeyCallOptions {
 }
 
 const Passkey = (() => {
-  const PAD_BLOCK = 4;
   const Endpoint = Object.freeze({
     challenge: '/auth/challenge',
     verify: '/auth/verify',
@@ -33,18 +32,7 @@ const Passkey = (() => {
   });
   const JSON_HEADERS = Object.freeze({ 'Content-Type': 'application/json' });
 
-  const toBytes = (b64url: string) => {
-    const pad = '='.repeat((PAD_BLOCK - (b64url.length % PAD_BLOCK)) % PAD_BLOCK);
-    const b64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
-    return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  };
-
-  const toB64url = (buffer: ArrayBuffer) => {
-    const bytes = new Uint8Array(buffer);
-    let s = '';
-    for (const b of bytes) s += String.fromCharCode(b);
-    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  };
+  const { toBytes, fromBytes: toB64url } = Base64Url;
 
   const descriptors = (list: CredentialDescriptorJson[] | undefined): PublicKeyCredentialDescriptor[] =>
     (list || []).map((d) => ({ ...d, id: toBytes(d.id) }));

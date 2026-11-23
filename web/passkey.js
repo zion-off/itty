@@ -1,5 +1,4 @@
 const Passkey = (() => {
-    const PAD_BLOCK = 4;
     const Endpoint = Object.freeze({
         challenge: '/auth/challenge',
         verify: '/auth/verify',
@@ -7,18 +6,7 @@ const Passkey = (() => {
         enrollFinish: '/enroll/finish',
     });
     const JSON_HEADERS = Object.freeze({ 'Content-Type': 'application/json' });
-    const toBytes = (b64url) => {
-        const pad = '='.repeat((PAD_BLOCK - (b64url.length % PAD_BLOCK)) % PAD_BLOCK);
-        const b64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
-        return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    };
-    const toB64url = (buffer) => {
-        const bytes = new Uint8Array(buffer);
-        let s = '';
-        for (const b of bytes)
-            s += String.fromCharCode(b);
-        return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    };
+    const { toBytes, fromBytes: toB64url } = Base64Url;
     const descriptors = (list) => (list || []).map((d) => ({ ...d, id: toBytes(d.id) }));
     const requestOptions = (o) => ({
         ...o,

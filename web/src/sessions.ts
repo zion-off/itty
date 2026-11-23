@@ -56,16 +56,6 @@ interface SessionsInstance {
 const Sessions = (() => {
   const GENERIC_ERROR = 'request failed';
 
-  const parse = (raw: unknown): RawControlMessage | null => {
-    if (typeof raw !== 'string') return null;
-    try {
-      const message: unknown = JSON.parse(raw);
-      return Narrow.isRecord(message) ? message : null;
-    } catch {
-      return null;
-    }
-  };
-
   const isName = (value: unknown): value is string => typeof value === 'string' && value !== '';
 
   const isNameList = (value: unknown): value is string[] => Array.isArray(value) && value.every(isName);
@@ -119,7 +109,7 @@ const Sessions = (() => {
 
     return {
       receive(raw) {
-        const message = parse(raw);
+        const message = Narrow.jsonRecord(raw);
         if (!message) return null;
         if (message['type'] === ControlType.sessions && isSessionList(message)) return applySessions(message);
         if (message['type'] === ControlType.windows && isWindowList(message)) return applyWindows(message);

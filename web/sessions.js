@@ -11,17 +11,6 @@ const ControlType = Object.freeze({
 });
 const Sessions = (() => {
     const GENERIC_ERROR = 'request failed';
-    const parse = (raw) => {
-        if (typeof raw !== 'string')
-            return null;
-        try {
-            const message = JSON.parse(raw);
-            return Narrow.isRecord(message) ? message : null;
-        }
-        catch {
-            return null;
-        }
-    };
     const isName = (value) => typeof value === 'string' && value !== '';
     const isNameList = (value) => Array.isArray(value) && value.every(isName);
     const isSessionList = (message) => isName(message['current']) &&
@@ -60,7 +49,7 @@ const Sessions = (() => {
         const hasWindow = (session, windowId) => (windows.get(session) ?? []).some((w) => w.id === windowId);
         return {
             receive(raw) {
-                const message = parse(raw);
+                const message = Narrow.jsonRecord(raw);
                 if (!message)
                     return null;
                 if (message['type'] === ControlType.sessions && isSessionList(message))
