@@ -13,11 +13,11 @@ import (
 	legolog "github.com/go-acme/lego/v4/log"
 	"github.com/spf13/cobra"
 
-	"github.com/zion/itty/internal/acme"
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/config"
-	"github.com/zion/itty/internal/dns"
-	"github.com/zion/itty/internal/dns/manual"
+	"github.com/zion-off/itty/internal/acme"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/config"
+	"github.com/zion-off/itty/internal/dns"
+	"github.com/zion-off/itty/internal/dns/manual"
 )
 
 const renewBefore = 30 * 24 * time.Hour

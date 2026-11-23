@@ -3,7 +3,7 @@ package server
 import (
 	"errors"
 
-	"github.com/zion/itty/internal/push"
+	"github.com/zion-off/itty/internal/push"
 )
 
 const (

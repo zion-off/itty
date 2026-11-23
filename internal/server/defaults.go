@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/zion/itty/internal/push"
-	"github.com/zion/itty/internal/terminal"
+	"github.com/zion-off/itty/internal/push"
+	"github.com/zion-off/itty/internal/terminal"
 )
 
 type onlySession string

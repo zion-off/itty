@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zion/itty/internal/install"
+	"github.com/zion-off/itty/internal/install"
 )
 
 func newInstallCommand() *cobra.Command {

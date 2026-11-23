@@ -9,9 +9,9 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/zion/itty/internal/logging"
-	"github.com/zion/itty/internal/push"
-	"github.com/zion/itty/internal/terminal"
+	"github.com/zion-off/itty/internal/logging"
+	"github.com/zion-off/itty/internal/push"
+	"github.com/zion-off/itty/internal/terminal"
 )
 
 const (

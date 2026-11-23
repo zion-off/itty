@@ -7,10 +7,10 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 
-	"github.com/zion/itty/internal/push"
-	"github.com/zion/itty/internal/ratelimit"
-	"github.com/zion/itty/internal/terminal"
-	"github.com/zion/itty/web"
+	"github.com/zion-off/itty/internal/push"
+	"github.com/zion-off/itty/internal/ratelimit"
+	"github.com/zion-off/itty/internal/terminal"
+	"github.com/zion-off/itty/web"
 )
 
 type Authenticator interface {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/zion/itty/internal/fsutil"
+	"github.com/zion-off/itty/internal/fsutil"
 )
 
 type FileStore struct {

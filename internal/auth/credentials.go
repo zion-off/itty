@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/webauthn"
 
-	"github.com/zion/itty/internal/fsutil"
+	"github.com/zion-off/itty/internal/fsutil"
 )
 
 type CredentialStore interface {

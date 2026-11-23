@@ -10,8 +10,8 @@ import (
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/zion/itty/internal/config"
-	"github.com/zion/itty/internal/logging"
+	"github.com/zion-off/itty/internal/config"
+	"github.com/zion-off/itty/internal/logging"
 )
 
 func newConfigCommand() *cobra.Command {

@@ -15,7 +15,7 @@ import (
 
 	"github.com/go-acme/lego/v4/registration"
 
-	"github.com/zion/itty/internal/fsutil"
+	"github.com/zion-off/itty/internal/fsutil"
 )
 
 type Account struct {

@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zion/itty/internal/clock"
+	"github.com/zion-off/itty/internal/clock"
 )
 
 func discardLog() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }

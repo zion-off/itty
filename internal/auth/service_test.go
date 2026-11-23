@@ -17,7 +17,7 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 
-	"github.com/zion/itty/internal/clock"
+	"github.com/zion-off/itty/internal/clock"
 )
 
 const (

@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/zion/itty/internal/terminal"
+	"github.com/zion-off/itty/internal/terminal"
 )
 
 type activeSession struct {

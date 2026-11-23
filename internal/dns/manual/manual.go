@@ -7,7 +7,7 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/zion/itty/internal/dns"
+	"github.com/zion-off/itty/internal/dns"
 )
 
 type Provider struct {

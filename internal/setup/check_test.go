@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/config"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/config"
 )
 
 func writeCert(t *testing.T, dir, host string, notAfter time.Time) (string, string) {

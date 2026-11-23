@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/push"
-	"github.com/zion/itty/internal/ratelimit"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/push"
+	"github.com/zion-off/itty/internal/ratelimit"
 )
 
 type fakePush struct {

@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zion/itty/internal/clock"
+	"github.com/zion-off/itty/internal/clock"
 )
 
 func writePair(t *testing.T, dir string, notAfter time.Time, serial int64) (string, string) {

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zion/itty/internal/fsutil"
+	"github.com/zion-off/itty/internal/fsutil"
 )
 
 type Options struct {

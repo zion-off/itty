@@ -11,9 +11,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/dns"
-	"github.com/zion/itty/internal/fsutil"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/dns"
+	"github.com/zion-off/itty/internal/fsutil"
 )
 
 type Renewer struct {

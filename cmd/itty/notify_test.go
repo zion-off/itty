@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zion/itty/internal/push"
+	"github.com/zion-off/itty/internal/push"
 )
 
 func TestNotifyWithoutSubscriptionsExplainsHowToTurnThemOn(t *testing.T) {

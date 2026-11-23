@@ -16,9 +16,9 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/gorilla/websocket"
 
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/ratelimit"
-	"github.com/zion/itty/internal/terminal"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/ratelimit"
+	"github.com/zion-off/itty/internal/terminal"
 )
 
 type fakeSession struct {

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zion/itty/internal/clock"
+	"github.com/zion-off/itty/internal/clock"
 )
 
 func TestTakeIsSingleUse(t *testing.T) {

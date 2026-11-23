@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zion/itty/internal/dns"
+	"github.com/zion-off/itty/internal/dns"
 )
 
 func newProvider(t *testing.T, in io.Reader) (dns.Provider, *bytes.Buffer) {

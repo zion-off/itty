@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zion/itty/internal/clock"
+	"github.com/zion-off/itty/internal/clock"
 )
 
 func newLinks(t *testing.T) (*FileEnrollmentLinks, *clock.Fake) {

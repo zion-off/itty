@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-acme/lego/v4/challenge/dns01"
 
-	"github.com/zion/itty/internal/dns"
+	"github.com/zion-off/itty/internal/dns"
 )
 
 const (

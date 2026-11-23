@@ -9,7 +9,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/zion/itty/internal/config"
+	"github.com/zion-off/itty/internal/config"
 )
 
 var ErrConfigExists = errors.New("config file already exists")

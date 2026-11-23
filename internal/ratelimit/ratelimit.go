@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zion/itty/internal/clock"
+	"github.com/zion-off/itty/internal/clock"
 )
 
 type Limiter interface {

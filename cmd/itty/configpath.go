@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/zion/itty/internal/service"
+	"github.com/zion-off/itty/internal/service"
 )
 
 var installedConfigPath = service.InstalledConfigPath

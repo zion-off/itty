@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zion/itty/internal/auth"
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/config"
+	"github.com/zion-off/itty/internal/auth"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/config"
 )
 
 const enrollmentLinkLifetime = 10 * time.Minute

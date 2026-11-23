@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zion/itty/internal/config"
+	"github.com/zion-off/itty/internal/config"
 )
 
 func writeConfig(t *testing.T, body string) (string, config.Config) {

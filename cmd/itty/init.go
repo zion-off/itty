@@ -10,9 +10,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/zion/itty/internal/config"
-	"github.com/zion/itty/internal/logging"
-	"github.com/zion/itty/internal/setup"
+	"github.com/zion-off/itty/internal/config"
+	"github.com/zion-off/itty/internal/logging"
+	"github.com/zion-off/itty/internal/setup"
 )
 
 func newInitCommand() *cobra.Command {

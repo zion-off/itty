@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zion/itty/internal/config"
-	"github.com/zion/itty/internal/dns"
+	"github.com/zion-off/itty/internal/config"
+	"github.com/zion-off/itty/internal/dns"
 )
 
 func discardLog() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }

@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/zion/itty/internal/config"
-	"github.com/zion/itty/internal/logging"
+	"github.com/zion-off/itty/internal/config"
+	"github.com/zion-off/itty/internal/logging"
 )
 
 const defaultConfigPath = "itty.toml"

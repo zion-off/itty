@@ -17,16 +17,16 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/zion/itty/internal/auth"
-	"github.com/zion/itty/internal/certs"
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/config"
-	"github.com/zion/itty/internal/lastsession"
-	"github.com/zion/itty/internal/logging"
-	"github.com/zion/itty/internal/push"
-	"github.com/zion/itty/internal/ratelimit"
-	"github.com/zion/itty/internal/server"
-	"github.com/zion/itty/internal/terminal"
+	"github.com/zion-off/itty/internal/auth"
+	"github.com/zion-off/itty/internal/certs"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/config"
+	"github.com/zion-off/itty/internal/lastsession"
+	"github.com/zion-off/itty/internal/logging"
+	"github.com/zion-off/itty/internal/push"
+	"github.com/zion-off/itty/internal/ratelimit"
+	"github.com/zion-off/itty/internal/server"
+	"github.com/zion-off/itty/internal/terminal"
 )
 
 const (

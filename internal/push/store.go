@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/fsutil"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/fsutil"
 )
 
 const MaxSubscriptions = 10

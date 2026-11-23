@@ -14,9 +14,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/config"
-	"github.com/zion/itty/internal/push"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/config"
+	"github.com/zion-off/itty/internal/push"
 )
 
 const (

@@ -9,8 +9,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/config"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/config"
 )
 
 type Status string

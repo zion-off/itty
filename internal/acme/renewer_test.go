@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zion/itty/internal/clock"
-	"github.com/zion/itty/internal/dns"
+	"github.com/zion-off/itty/internal/clock"
+	"github.com/zion-off/itty/internal/dns"
 )
 
 const host = "itty.example.com"

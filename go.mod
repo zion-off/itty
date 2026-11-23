@@ -1,4 +1,4 @@
-module github.com/zion/itty
+module github.com/zion-off/itty
 
 go 1.26.5
 

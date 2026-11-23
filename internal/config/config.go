@@ -10,7 +10,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/zion/itty/internal/fsutil"
+	"github.com/zion-off/itty/internal/fsutil"
 )
 
 type Config struct {

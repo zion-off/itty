@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/zion/itty/internal/auth"
-	"github.com/zion/itty/internal/logging"
+	"github.com/zion-off/itty/internal/auth"
+	"github.com/zion-off/itty/internal/logging"
 )
 
 const maxBodyBytes = 64 * 1024
