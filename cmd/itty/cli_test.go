@@ -42,7 +42,7 @@ func TestBareCommandShowsHelpInsteadOfStartingTheServer(t *testing.T) {
 
 func TestHelpListsEveryCommand(t *testing.T) {
 	got := runCLI(t, "--help")
-	for _, name := range []string{"install", "init", "check", "enroll", "serve", "renew-cert", "config", "service", "start", "stop", "restart", "status"} {
+	for _, name := range []string{"install", "init", "check", "enroll", "notify", "serve", "renew-cert", "config", "service", "start", "stop", "restart", "status"} {
 		if !strings.Contains(got.stdout, name) {
 			t.Errorf("help does not list %q:\n%s", name, got.stdout)
 		}

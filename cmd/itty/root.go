@@ -24,6 +24,7 @@ func newRootCommand() *cobra.Command {
 		newInitCommand(),
 		newCheckCommand(),
 		newEnrollCommand(),
+		newNotifyCommand(),
 		newServeCommand(),
 		newRenewCertCommand(),
 		newConfigCommand(),
