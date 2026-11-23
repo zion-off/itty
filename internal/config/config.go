@@ -101,6 +101,14 @@ func (c Config) LastSessionPath() string { return filepath.Join(c.DataDir, "last
 
 func (c Config) EnrollmentPath() string { return filepath.Join(c.DataDir, "enrollment.json") }
 
+func (c Config) PushKeysPath() string { return filepath.Join(c.DataDir, "push-vapid.json") }
+
+func (c Config) PushSubscriptionsPath() string {
+	return filepath.Join(c.DataDir, "push-subscriptions.json")
+}
+
+func (c Config) PushSubscriber() string { return "https://" + c.Hostname }
+
 func (c Config) Validate() error {
 	var errs []error
 	if c.Hostname == "" {

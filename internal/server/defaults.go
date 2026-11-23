@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/zion/itty/internal/push"
 	"github.com/zion/itty/internal/terminal"
 )
 
@@ -28,3 +29,11 @@ func (noWindows) NewWindow(context.Context, string) error {
 func (noWindows) CloseWindow(context.Context, string, string) error {
 	return errors.New("window closing is not available")
 }
+
+var errPushUnavailable = errors.New("notifications are not available")
+
+type noPush struct{}
+
+func (noPush) PublicKey() (string, error)        { return "", errPushUnavailable }
+func (noPush) Subscribe(push.Subscription) error { return errPushUnavailable }
+func (noPush) Unsubscribe(string) error          { return errPushUnavailable }

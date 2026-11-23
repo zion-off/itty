@@ -23,6 +23,7 @@ import (
 	"github.com/zion/itty/internal/config"
 	"github.com/zion/itty/internal/lastsession"
 	"github.com/zion/itty/internal/logging"
+	"github.com/zion/itty/internal/push"
 	"github.com/zion/itty/internal/ratelimit"
 	"github.com/zion/itty/internal/server"
 	"github.com/zion/itty/internal/terminal"
@@ -93,7 +94,11 @@ func serve(cfg config.Config, log *slog.Logger) error {
 		DefaultSession: cfg.TmuxSession,
 		Auth:           authService,
 		Limiter:        ratelimit.NewFailureLimiter(clk, maxFailedLogins, failureWindow),
-		Log:            log,
+		Push: push.NewRegistry(
+			push.NewFileKeyStore(cfg.PushKeysPath(), log),
+			push.NewFileSubscriptionStore(cfg.PushSubscriptionsPath(), clk, log),
+		),
+		Log: log,
 	}
 	srv := &http.Server{
 		Addr:              cfg.Listen,

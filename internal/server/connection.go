@@ -125,6 +125,12 @@ func (c *connection) control(ctx context.Context, data []byte) {
 		c.newWindow(ctx, msg.Session)
 	case "close_window":
 		c.closeWindow(ctx, msg.Session, msg.Window)
+	case "push_key":
+		c.sendPushKey()
+	case "push_subscribe":
+		c.subscribePush(msg.Subscription)
+	case "push_unsubscribe":
+		c.unsubscribePush(msg.Endpoint)
 	default:
 		c.log.Debug("ignoring unknown control message", "type", msg.Type)
 	}
@@ -346,11 +352,7 @@ func (c *connection) writeSessionsLocked(ctx context.Context, current string) er
 }
 
 func (c *connection) sendError(message string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if err := c.writeJSONLocked(map[string]string{"type": "error", "message": message}); err != nil {
-		c.log.Warn("sending error message failed", "error", err)
-	}
+	c.writeControl(map[string]string{"type": "error", "message": message})
 }
 
 func (c *connection) writeJSONLocked(v any) error {

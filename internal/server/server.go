@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 
+	"github.com/zion/itty/internal/push"
 	"github.com/zion/itty/internal/ratelimit"
 	"github.com/zion/itty/internal/terminal"
 	"github.com/zion/itty/web"
@@ -26,6 +27,12 @@ type LastSessionStore interface {
 	Save(name string) error
 }
 
+type PushRegistry interface {
+	PublicKey() (string, error)
+	Subscribe(push.Subscription) error
+	Unsubscribe(endpoint string) error
+}
+
 type CertStatus interface {
 	DaysRemaining() (int, error)
 }
@@ -40,6 +47,7 @@ type Deps struct {
 	Auth           Authenticator
 	Limiter        ratelimit.Limiter
 	Certs          CertStatus
+	Push           PushRegistry
 	Log            *slog.Logger
 }
 
@@ -57,6 +65,9 @@ func New(d Deps) http.Handler {
 	}
 	if d.LastSession == nil {
 		d.LastSession = forgetfulStore{}
+	}
+	if d.Push == nil {
+		d.Push = noPush{}
 	}
 	s := &Server{Deps: d, assets: newAssets(web.Files())}
 	mux := http.NewServeMux()

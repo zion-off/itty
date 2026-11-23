@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/zion/itty/internal/logging"
+	"github.com/zion/itty/internal/push"
 	"github.com/zion/itty/internal/terminal"
 )
 
@@ -19,11 +20,13 @@ const (
 )
 
 type clientMessage struct {
-	Type    string `json:"type"`
-	Cols    uint16 `json:"cols"`
-	Rows    uint16 `json:"rows"`
-	Session string `json:"session"`
-	Window  string `json:"window"`
+	Type         string             `json:"type"`
+	Cols         uint16             `json:"cols"`
+	Rows         uint16             `json:"rows"`
+	Session      string             `json:"session"`
+	Window       string             `json:"window"`
+	Subscription *push.Subscription `json:"subscription"`
+	Endpoint     string             `json:"endpoint"`
 }
 
 func (s *Server) originAllowed(r *http.Request) bool {
