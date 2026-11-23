@@ -3,6 +3,9 @@ import path from 'node:path';
 const MODULES: Readonly<Record<string, string>> = {
   Dom: 'dom.js',
   Narrow: 'narrow.js',
+  Base64Url: 'base64url.js',
+  Notifications: 'notifications.js',
+  ServiceWorkerPush: 'sw.js',
   Spring: 'spring.js',
   Attempts: 'attempts.js',
   Dictation: 'dictation.js',

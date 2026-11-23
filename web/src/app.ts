@@ -129,9 +129,15 @@ type FailedAttempt = Extract<AttemptResult<string>, { status: typeof AttemptStat
   });
   const attempts = Attempts.create({ timeoutMs: UNLOCK_TIMEOUT_MS });
   const sessions = Sessions.create();
+  const notifications = Notifications.create({
+    platform: BrowserPush.create(),
+    send: sendControl,
+    onChange: () => switcher.refreshNotifications(),
+  });
   const switcher = Switcher.create({
     root: switcherElement,
     sessions,
+    notifications,
     send: sendControl,
     ignoreClick: switcherPosition.ignoreClick,
   });
@@ -175,6 +181,7 @@ type FailedAttempt = Extract<AttemptResult<string>, { status: typeof AttemptStat
     closeSocket();
     term.reset();
     switcher.reset();
+    notifications.reset();
     touch.reset();
     showLock(message, tone);
   }
@@ -184,6 +191,7 @@ type FailedAttempt = Extract<AttemptResult<string>, { status: typeof AttemptStat
   }
 
   function handleControl(raw: unknown) {
+    if (notifications.receive(raw)) return;
     const update = sessions.receive(raw);
     if (!update) return;
     if (update.type === ControlType.sessions && update.reset) term.reset();
@@ -200,6 +208,7 @@ type FailedAttempt = Extract<AttemptResult<string>, { status: typeof AttemptStat
       setLocked(false);
       fit.fit();
       sendResize();
+      notifications.connected();
     };
     ws.onmessage = (event) => {
       if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));

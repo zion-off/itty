@@ -1,12 +1,19 @@
+interface NotificationsToggle {
+  state(): NotificationsState;
+  toggle(): void;
+}
+
 interface SwitcherOptions {
   root: HTMLElement;
   sessions: SessionsInstance;
+  notifications: NotificationsToggle;
   send: (message: string) => void;
   ignoreClick?: () => boolean;
 }
 
 interface SwitcherInstance {
   handle(update: SessionUpdate): void;
+  refreshNotifications(): void;
   reset(): void;
 }
 
@@ -36,15 +43,28 @@ const Switcher = (() => {
     back: 'session-back',
     empty: 'session-empty',
     newRow: 'session-row session-new',
+    divider: 'session-divider',
+    toggleRow: 'session-row session-toggle',
+    rowText: 'session-row-text',
+    rowNote: 'session-row-note',
+    switchTrack: 'switch',
   });
 
-  const Role = Object.freeze({ radio: 'menuitemradio', item: 'menuitem' });
+  const Role = Object.freeze({
+    radio: 'menuitemradio',
+    item: 'menuitem',
+    checkbox: 'menuitemcheckbox',
+    separator: 'separator',
+  });
+
+  const BUSY_ATTR = 'aria-busy';
 
   const Text = Object.freeze({
     sessionsMenuLabel: 'tmux sessions',
     loading: 'Loading…',
     newWindow: 'New window',
     switchSession: 'Switch session',
+    notifications: 'notifications',
   });
 
   const Var = Object.freeze({ depth: '--depth', pagesHeight: '--pages-height' });
@@ -57,7 +77,7 @@ const Switcher = (() => {
 
   const keepFocus = (event: Event) => event.preventDefault();
 
-  const create = ({ root, sessions, send, ignoreClick = () => false }: SwitcherOptions): SwitcherInstance => {
+  const create = ({ root, sessions, notifications, send, ignoreClick = () => false }: SwitcherOptions): SwitcherInstance => {
     const pill = Dom.query(root, Selector.pill, HTMLElement);
     const menu = Dom.query(root, Selector.menu, HTMLElement);
     const scrim = Dom.query(root, Selector.scrim, HTMLElement);
@@ -116,6 +136,7 @@ const Switcher = (() => {
       scrim.hidden = !open;
       if (open) {
         drilled = null;
+        updateNotifications({ animate: false });
         renderSessions();
         showPage({ animate: false });
         presence.show();
@@ -197,10 +218,47 @@ const Switcher = (() => {
       return el;
     };
 
+    const divider = () => {
+      const el = document.createElement('div');
+      el.className = ClassName.divider;
+      el.setAttribute(Dom.attr.role, Role.separator);
+      return el;
+    };
+
+    const notificationsDivider = divider();
+    const notificationsNote = label(ClassName.rowNote, '');
+    const notificationsTrack = label(ClassName.switchTrack, '');
+    notificationsTrack.setAttribute(Dom.attr.hidden, 'true');
+    const notificationsText = document.createElement('span');
+    notificationsText.className = ClassName.rowText;
+    notificationsText.append(label(ClassName.rowName, Text.notifications), notificationsNote);
+    const notificationsRow = document.createElement('button');
+    notificationsRow.type = 'button';
+    notificationsRow.className = ClassName.toggleRow;
+    notificationsRow.setAttribute(Dom.attr.role, Role.checkbox);
+    notificationsRow.append(notificationsText, notificationsTrack);
+    notificationsRow.addEventListener(Dom.event.pointerDown, keepFocus);
+    notificationsRow.addEventListener(Dom.event.click, () => notifications.toggle());
+    const notificationsSwitch = Toggle.create({ root: notificationsRow, track: notificationsTrack, checked: false });
+
+    const updateNotifications = ({ animate }: { animate: boolean }) => {
+      const { checked, enabled, busy, note } = notifications.state();
+      notificationsRow.setAttribute(Dom.attr.checked, String(checked));
+      notificationsRow.setAttribute(BUSY_ATTR, String(busy));
+      notificationsRow.disabled = !enabled;
+      notificationsNote.textContent = note;
+      notificationsNote.hidden = note === '';
+      notificationsSwitch.setChecked(checked, { animate });
+    };
+
     const renderSessions = () => {
       const { current, sessions: names } = sessions.state();
       menu.setAttribute(Dom.attr.label, Text.sessionsMenuLabel);
-      sessionsPage.replaceChildren(...names.map((name) => sessionRow(name, current)));
+      sessionsPage.replaceChildren(
+        ...names.map((name) => sessionRow(name, current)),
+        notificationsDivider,
+        notificationsRow,
+      );
     };
 
     const renderWindows = (session: string) => {
@@ -298,6 +356,10 @@ const Switcher = (() => {
         else fitHeight({ animate: open });
         showLabel();
         console.info('itty: session', sessions.state().current);
+      },
+      refreshNotifications() {
+        updateNotifications({ animate: open });
+        if (open && drilled === null) fitHeight({ animate: true });
       },
       reset() {
         stopErrorTimer();

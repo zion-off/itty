@@ -120,9 +120,15 @@
     });
     const attempts = Attempts.create({ timeoutMs: UNLOCK_TIMEOUT_MS });
     const sessions = Sessions.create();
+    const notifications = Notifications.create({
+        platform: BrowserPush.create(),
+        send: sendControl,
+        onChange: () => switcher.refreshNotifications(),
+    });
     const switcher = Switcher.create({
         root: switcherElement,
         sessions,
+        notifications,
         send: sendControl,
         ignoreClick: switcherPosition.ignoreClick,
     });
@@ -164,6 +170,7 @@
         closeSocket();
         term.reset();
         switcher.reset();
+        notifications.reset();
         touch.reset();
         showLock(message, tone);
     }
@@ -171,6 +178,8 @@
         sendControl(JSON.stringify({ type: ControlType.resize, cols: term.cols, rows: term.rows }));
     }
     function handleControl(raw) {
+        if (notifications.receive(raw))
+            return;
         const update = sessions.receive(raw);
         if (!update)
             return;
@@ -188,6 +197,7 @@
             setLocked(false);
             fit.fit();
             sendResize();
+            notifications.connected();
         };
         ws.onmessage = (event) => {
             if (event.data instanceof ArrayBuffer)
